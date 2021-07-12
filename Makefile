@@ -26,7 +26,7 @@ clean:
 	-rm iverba2.s
 	-rm sound.s
 	-rm iverba2.map
-	-rm iverba2_fnt.h
+	-rm font/iverba2_fnt.h
 	-rm tools/font-to-h
 
 en_us.dic:	tools/mkdict.php
@@ -53,7 +53,7 @@ iverba2.xex:	iverba2.o sound.o atari.cfg
 iverba2.o:	iverba2.s
 	${CA65} -I "${CC65_ASMINC}" -t atari iverba2.s -o iverba2.o
 
-iverba2.s:	iverba2.c iverba2_fnt.h sound.h
+iverba2.s:	iverba2.c font/iverba2_fnt.h sound.h
 	${CC65} ${CC65_FLAGS} -I "${CC65_INC}" \
 		-t atari \
 		iverba2.c \
@@ -68,7 +68,7 @@ sound.s:	sound.c sound.h
 		sound.c \
 		-o sound.s
 
-iverba2_fnt.h:	iverba2_fnt.pbm tools/font-to-h
+font/iverba2_fnt.h:	font/iverba2_fnt.pbm tools/font-to-h
 	tools/font-to-h
 
 tools/font-to-h:	tools/font-to-h.c

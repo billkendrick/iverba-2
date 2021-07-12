@@ -9,7 +9,7 @@ int main(int argc, char * argv[]) {
   unsigned char img[16][32];
   unsigned char b;
 
-  fi = fopen("iverba2_fnt.pbm", "r");
+  fi = fopen("font/iverba2_fnt.pbm", "r");
   if (fi == NULL) {
     fprintf(stderr, "Can't open 'iverba2_fnt.pbm' for read.\n");
     exit(1);
@@ -49,7 +49,7 @@ int main(int argc, char * argv[]) {
   fclose(fi);
 
 
-  fo = fopen("iverba2_fnt.h", "w");
+  fo = fopen("font/iverba2_fnt.h", "w");
   if (fo == NULL) {
     fprintf(stderr, "Can't open 'iverba2_fnt.h' for write.\n");
     exit(1);

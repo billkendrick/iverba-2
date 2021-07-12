@@ -8,7 +8,7 @@
     August - September 2017
 
   * cc65 port:
-    June 30, 2021 - July 11, 2021
+    June 30, 2021 - July 12, 2021
 */
 
 #include <stdio.h>
@@ -19,7 +19,7 @@
 #include "sound.h"
 
 #pragma data-name (push,"FONT")
-#include "iverba2_fnt.h"
+#include "font/iverba2_fnt.h"
 #pragma data-name (pop)
 
 #define BOOL unsigned char
