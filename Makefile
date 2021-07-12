@@ -39,9 +39,9 @@ iverba2.atr:	iverba2.atr.in iverba2.xex \
 	${FRANNY} -A iverba2.atr -i en_us.dic -o EN_US.DIC
 	${FRANNY} -A iverba2.atr -i hiscore.dat -o HISCORE.DAT
 
-iverba2.xex:	iverba2.o sound.o atari.cfg
+iverba2.xex:	iverba2.o sound.o src/atari.cfg
 	${LD65} \
-		--cfg-path "cfg" \
+		--cfg-path "src" \
 		--lib-path "${CC65_LIB}" \
 		-o iverba2.xex \
 		-t atari \
@@ -53,19 +53,19 @@ iverba2.xex:	iverba2.o sound.o atari.cfg
 iverba2.o:	iverba2.s
 	${CA65} -I "${CC65_ASMINC}" -t atari iverba2.s -o iverba2.o
 
-iverba2.s:	iverba2.c font/iverba2_fnt.h sound.h
+iverba2.s:	src/iverba2.c font/iverba2_fnt.h src/sound.h
 	${CC65} ${CC65_FLAGS} -I "${CC65_INC}" \
 		-t atari \
-		iverba2.c \
+		src/iverba2.c \
 		-o iverba2.s
 
 sound.o:	sound.s
 	${CA65} -I "${CC65_ASMINC}" -t atari sound.s -o sound.o
 
-sound.s:	sound.c sound.h
+sound.s:	src/sound.c src/sound.h
 	${CC65} ${CC65_FLAGS} -I "${CC65_INC}" \
 		-t atari \
-		sound.c \
+		src/sound.c \
 		-o sound.s
 
 font/iverba2_fnt.h:	font/iverba2_fnt.pbm tools/font-to-h

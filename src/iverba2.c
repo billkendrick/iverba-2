@@ -19,7 +19,7 @@
 #include "sound.h"
 
 #pragma data-name (push,"FONT")
-#include "font/iverba2_fnt.h"
+#include "../font/iverba2_fnt.h"
 #pragma data-name (pop)
 
 #define BOOL unsigned char
