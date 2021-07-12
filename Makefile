@@ -27,10 +27,10 @@ clean:
 	-rm sound.s
 	-rm iverba2.map
 	-rm iverba2_fnt.h
-	-rm font-to-h
+	-rm tools/font-to-h
 
-en_us.dic:	mkdict.php
-	./mkdict.php /usr/share/dict/american-english en_us.dic 8
+en_us.dic:	tools/mkdict.php
+	tools/mkdict.php /usr/share/dict/american-english en_us.dic 8
 
 iverba2.atr:	iverba2.atr.in iverba2.xex \
 		en_us.dic hiscore.dat
@@ -68,11 +68,11 @@ sound.s:	sound.c sound.h
 		sound.c \
 		-o sound.s
 
-iverba2_fnt.h:	iverba2_fnt.pbm font-to-h
-	./font-to-h
+iverba2_fnt.h:	iverba2_fnt.pbm tools/font-to-h
+	tools/font-to-h
 
-font-to-h:	font-to-h.c
-	gcc font-to-h.c -o font-to-h
+tools/font-to-h:	tools/font-to-h.c
+	gcc tools/font-to-h.c -o tools/font-to-h
 
 hiscore.dat:
 	echo "\0\0\0" > hiscore.dat
