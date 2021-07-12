@@ -19,33 +19,33 @@ run:	all
 
 clean:
 	-rm iverba2.atr
-	-rm iverba2.xex
-	-rm hiscore.dat
-	-rm *.dic
+	-rm build/iverba2.xex
+	-rm build/hiscore.dat
+	-rm build/*.dic
 	-rm *.o
 	-rm iverba2.s
 	-rm sound.s
-	-rm iverba2.map
+	-rm build/iverba2.map
 	-rm font/iverba2_fnt.h
 	-rm tools/font-to-h
 
-en_us.dic:	tools/mkdict.php
-	tools/mkdict.php /usr/share/dict/american-english en_us.dic 8
+build/en_us.dic:	tools/mkdict.php
+	tools/mkdict.php /usr/share/dict/american-english build/en_us.dic 8
 
-iverba2.atr:	iverba2.atr.in iverba2.xex \
-		en_us.dic hiscore.dat
+iverba2.atr:	iverba2.atr.in build/iverba2.xex \
+		build/en_us.dic build/hiscore.dat
 	cp iverba2.atr.in iverba2.atr
-	${FRANNY} -A iverba2.atr -i iverba2.xex -o AUTORUN
-	${FRANNY} -A iverba2.atr -i en_us.dic -o EN_US.DIC
-	${FRANNY} -A iverba2.atr -i hiscore.dat -o HISCORE.DAT
+	${FRANNY} -A iverba2.atr -i build/iverba2.xex -o AUTORUN
+	${FRANNY} -A iverba2.atr -i build/en_us.dic -o EN_US.DIC
+	${FRANNY} -A iverba2.atr -i build/hiscore.dat -o HISCORE.DAT
 
-iverba2.xex:	iverba2.o sound.o src/atari.cfg
+build/iverba2.xex:	iverba2.o sound.o src/atari.cfg
 	${LD65} \
 		--cfg-path "src" \
 		--lib-path "${CC65_LIB}" \
-		-o iverba2.xex \
+		-o build/iverba2.xex \
 		-t atari \
-		-m iverba2.map \
+		-m build/iverba2.map \
 		iverba2.o \
 		sound.o \
 		atari.lib
@@ -74,8 +74,8 @@ font/iverba2_fnt.h:	font/iverba2_fnt.pbm tools/font-to-h
 tools/font-to-h:	tools/font-to-h.c
 	gcc tools/font-to-h.c -o tools/font-to-h
 
-hiscore.dat:
-	echo "\0\0\0" > hiscore.dat
+build/hiscore.dat:
+	echo "\0\0\0" > build/hiscore.dat
 
 # Creates a blank ATR, for generating a fresh "disk/gemdrop.atr.in" by hand.
 # Steps:
