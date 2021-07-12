@@ -31,9 +31,9 @@ clean:
 build/en_us.dic:	tools/mkdict.php
 	tools/mkdict.php /usr/share/dict/american-english build/en_us.dic 8
 
-iverba2.atr:	iverba2.atr.in build/iverba2.xex \
+iverba2.atr:	disk/iverba2.atr.in build/iverba2.xex \
 		build/en_us.dic build/hiscore.dat
-	cp iverba2.atr.in iverba2.atr
+	cp disk/iverba2.atr.in iverba2.atr
 	${FRANNY} -A iverba2.atr -i build/iverba2.xex -o AUTORUN
 	${FRANNY} -A iverba2.atr -i build/en_us.dic -o EN_US.DIC
 	${FRANNY} -A iverba2.atr -i build/hiscore.dat -o HISCORE.DAT
@@ -76,7 +76,7 @@ tools/font-to-h:	tools/font-to-h.c
 build/hiscore.dat:
 	echo "\0\0\0" > build/hiscore.dat
 
-# Creates a blank ATR, for generating a fresh "disk/gemdrop.atr.in" by hand.
+# Creates a blank ATR, for generating a fresh "disk/iverba2.atr.in" by hand.
 # Steps:
 # 1. Download "udos.atr" from this ABBUC thread
 #    http://www.abbuc.de/community/forum/viewtopic.php?f=3&t=10347)
