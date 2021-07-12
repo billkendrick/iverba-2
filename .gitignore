@@ -1,0 +1,20 @@
+# No final ATR disk image
+iverba2.atr
+
+# No compiled executables of htools (host) or the game itself (Atari)
+font-to-h
+*.xex
+
+# No object files; no assembly code based on C code
+*.o
+iverba2.s
+sound.s
+
+# No generated source or data files
+*.dic
+hiscore.dat
+iverba2_fnt.h
+
+# No cc65 .map files
+*.map
+
