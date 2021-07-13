@@ -656,7 +656,7 @@ void level_start(void) {
 420 WORD_CNT=%0:COLOR %3+128:PLOT %0,%1:DRAWTO 19,%1
 */
   word_cnt = 0;
-  memset(scr_mem + 20, 3, 20);
+  memset(scr_mem + 20, 3 + 128, 20);
 
 /*
 430 PAUSE %1
