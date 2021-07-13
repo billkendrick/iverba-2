@@ -8,7 +8,7 @@
     August - September 2017
 
   * cc65 port:
-    June 30, 2021 - July 12, 2021
+    June 30, 2021 - July 13, 2021
 */
 
 #include <stdio.h>
@@ -167,6 +167,53 @@ unsigned char binsearch(char * str) {
 }
 
 /*
+Display List Interrupts
+*/
+#pragma optimize (push, off)
+void dli(void)
+{
+  asm("pha");
+  asm("txa");
+  asm("pha");
+  asm("tya");
+  asm("pha");
+
+  asm("lda %w", (unsigned)&OS.chbas);
+  asm("adc #2");
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.chbase);
+
+  asm("lda %w", (unsigned)&OS.chbas);
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.wsync);
+  asm("sta %w", (unsigned)&ANTIC.chbase);
+
+  asm("pla");
+  asm("tay");
+  asm("pla");
+  asm("tax");
+  asm("pla");
+
+  asm("rti");
+}
+#pragma optimize (pop);
+
+
+/*
 . Set up screen
 */
 void setup_screen(void) {
@@ -216,10 +263,16 @@ void setup_screen(void) {
   POKE(dl+18,DL_BLK8);
   POKE(dl+19,DL_BLK8);
   POKE(dl+20,DL_GRAPHICS1);
-  POKE(dl+21,DL_BLK1);
+  POKE(dl+21,DL_DLI(DL_BLK1));
   POKE(dl+22,DL_GRAPHICS2);
 
   SCROLL(15);
+
+
+  ANTIC.nmien = NMIEN_VBI;
+  while (ANTIC.vcount < 124);
+  OS.vdslst = (void *) dli;
+  ANTIC.nmien = NMIEN_VBI | NMIEN_DLI;
 }
 
 void title(void) {
@@ -1110,6 +1163,8 @@ void main(void) {
     game_over();
     title();
   } while (1);
+
+  ANTIC.nmien = NMIEN_VBI;
 }
 
 /*
