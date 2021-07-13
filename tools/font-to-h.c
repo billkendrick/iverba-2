@@ -6,7 +6,7 @@ int main(int argc, char * argv[]) {
   FILE * fi, * fo;
   char buf[128];
   int w, h, x, y, r;
-  unsigned char img[16][32];
+  unsigned char img[32][32];
   unsigned char b;
 
   fi = fopen("font/iverba2_fnt.pbm", "r");
@@ -18,7 +18,7 @@ int main(int argc, char * argv[]) {
   /*
     P4
     # Created by GIMP version 2.10.24 PNM plug-in
-    256 16
+    256 32
   */
 
   fgets(buf, sizeof(buf), fi);
@@ -34,8 +34,8 @@ int main(int argc, char * argv[]) {
   }
 
   sscanf(buf, "%d %d", &w, &h);
-  if (w != 256 || h != 16) {
-    fprintf(stderr, "'iverba2_fnt.pbm' not 256 x 16.\n");
+  if (w != 256 || h != 32) {
+    fprintf(stderr, "'iverba2_fnt.pbm' not 256 x 32.\n");
     fclose(fi);
     exit(1);
   }
@@ -59,11 +59,11 @@ int main(int argc, char * argv[]) {
   fprintf(fo, "#define IVERBA2_FNT_H\n");
   fprintf(fo, "static unsigned char iverba2_fnt[] = {\n");
 
-  for (r = 0; r < 2; r++) {
-    for (x = 0; x < 32; x++) {
+  for (r = 0; r < h / 8; r++) {
+    for (x = 0; x < w / 8; x++) {
       for (y = 0; y < 8; y++) {
         fprintf(fo, "0x%02x", img[r * 8 + y][x]);
-        if (r < 1 || x < 31 || y < 7) {
+        if (r < ((h / 8) - 1) || x < ((w / 8) - 1) || y < 7) {
           fprintf(fo, ", ");
         }
       }
