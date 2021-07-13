@@ -290,7 +290,7 @@ void title(void) {
   myprint(0, 5, "for iphone & android");
   myprint(1, 7, "by simple machine");
   myprint(4, 12, "PRERELEASE 1");
-  myprint(5, 13, "2021-07-11");
+  myprint(5, 13, "2021-07-13");
 }
 
 
@@ -453,7 +453,15 @@ void save_high_score(void) {
 193 MOVE ADR("{#0}{#0}{#0}{#3}{#3}{#3}{#3}{#3}{#0}{#0}{#3}{#3}{#3}{#3}{#3}{#3}{#0}{#3}{#3}{#3}{#3}{#3}{#3}{#3}{#3}{#3}{#3}{#3}{#3}{#3}{#3}{#3}"),CH+56,32
 */
 
-char mad_symbols[] = " !\"$%'()*";
+
+unsigned char get_mad_sym(unsigned char madness, int offset) {
+  if (madness == 0) {
+    return(0);
+  } else {
+    return((1 + (madness - 1) * 3) + (((OS.rtclok[2] >> 2) + offset) % 3));
+  }
+}
+
 
 /*
 . Show available letters
@@ -461,7 +469,7 @@ char mad_symbols[] = " !\"$%'()*";
 */
 void show_avail(void) {
   int x, i;
-  char c;
+  char c, mad_sym;
 
 /*
 1305   X=10-((WORDLEN/%2)*%2)
@@ -483,7 +491,9 @@ void show_avail(void) {
 /*
 1340     POSITION X,9:M=MAD(I)+%1:?#6;MAD$(M,M);C$
 */
-    sprintf(tmp_msg, "%c%c", mad_symbols[mad[i] >> 8], c);
+    mad_sym = get_mad_sym(mad[i] >> 8, i);
+
+    sprintf(tmp_msg, "%c%c", mad_sym + ' ', c);
     myprint(x, 9, tmp_msg);
 
 /*
@@ -1016,7 +1026,7 @@ void show_meters(void) {
       gameover = TRUE;
     }
 
-    scr_mem[9 * 20 + x] = mad_symbols[m] - 32;
+    scr_mem[9 * 20 + x] = get_mad_sym(m, i);
 
     x += 2;
 /*
@@ -1024,7 +1034,6 @@ void show_meters(void) {
 */
   }
 }
-
 
 /*
 . Game loop!
