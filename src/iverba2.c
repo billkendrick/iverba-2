@@ -48,6 +48,8 @@ unsigned char level, word_cnt;
 int entry_len;
 unsigned char * scr_mem;
 unsigned char ltr_scores[26];
+BOOL pal_speed;
+
 
 void sleep(int i) {
   unsigned char target;
@@ -220,7 +222,7 @@ void dli(void)
 . Set up screen
 */
 void setup_screen(void) {
-  unsigned int dl;
+  unsigned int dl, crossed, max_vcount;
 
 /*
 110 GRAPHICS 17:DL=DPEEK(560):SC=DPEEK(88):POKE 712,30:POKE 708,0:POKE 709,24:POKE 710,15:POKE 711,34
@@ -235,6 +237,22 @@ void setup_screen(void) {
   OS.color2 = 0;
   OS.color3 = 0;
   OS.color4 = 0;
+
+  /* Try to detect PAL vs NTSC ANTIC via VCOUNT test */
+  pal_speed = FALSE;
+  max_vcount = 0;
+  crossed = 0;
+  do {
+    if (ANTIC.vcount > max_vcount) {
+      max_vcount = ANTIC.vcount;
+    }
+    if (ANTIC.vcount == 0) {
+      crossed++;
+    }
+  } while (crossed < 2);
+  if (max_vcount > 133) {
+    pal_speed = TRUE;
+  }
 
   OS.chbas = ((int) iverba2_fnt / 256);
 
@@ -295,10 +313,10 @@ void title(void) {
   myprint(10 - strlen(VERSION) / 2, 12, VERSION);
   myprint(10 - strlen(VERSION_DATE) / 2, 13, VERSION_DATE);
 
-  if (GTIA_READ.pal == TV_STD_PAL) {
-    myprint(9, 14, "PAL");
+  if (pal_speed) {
+    myprint(5, 14, "PAL ANTIC");
   } else {
-    myprint(8, 14, "NTSC");
+    myprint(5, 14, "NTSC ANTIC");
   }
 }
 
@@ -888,7 +906,11 @@ void pressed_a_key(void) {
 585       WORD_CNT=WORD_CNT+%1:COLOR %3:PLOT %0,%1:DRAWTO 6*WORD_CNT,%1:FOR A=15 TO %0 STEP -%1:SOUND %0,61,10,A:NEXT A
 */
       word_cnt++;
-      memset(scr_mem + 20, 3, word_cnt * 6);
+      if (word_cnt < 3) {
+        memset(scr_mem + 20, 3, word_cnt * 7);
+      } else {
+        memset(scr_mem + 20, 3, 20);
+      }
       for (i = 0; i < 16; i++) {
         SOUND(0, 61, 10, 15 - i);
         sleep(1);
@@ -1035,7 +1057,16 @@ void show_meters(void) {
 /*    
 830   MAD(I)=MAD(I)+((11-S)/(200-(LEVEL*4)))
 */
-    mad[i] += ((11 - s) << 8) / (1280 - (level * 8)); /* TODO Fine tune */
+
+#define ANTI_SPEED 32 /* the higher the number, the slower things increase */
+
+    if (pal_speed) {
+      /* PAL; clicks less often, so add madness more quickly */
+      mad[i] += (((11 - s) << 8) * level) / (ANTI_SPEED * 50);
+    } else {
+      /* NTSC; clicks more often, so add madness less quickly */
+      mad[i] += (((11 - s) << 8) * level) / (ANTI_SPEED * 60);
+    }
 
 /*    
 840   POSITION X,9:M=MAD(I)+%1:IF M>9:M=9:GAMEOVER=1:ENDIF
@@ -1154,7 +1185,7 @@ void main(void) {
   setup_screen();
   title();
 
-  for (i = 0; i < 14; i++) {
+  for (i = 0; i < 15; i++) {
     OS.color4 = 16 + i; // => 30
     OS.color1 = 16 + (i / 2); // => 24;
     OS.color2 = (i * 7) / 10; // => 10
