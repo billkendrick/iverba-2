@@ -1,16 +1,17 @@
-Invenies Verba ("Find the Words")
+# Invenies Verba ("Find the Words")
 By Bill Kendrick <bill@newbreedsoftware.com>
-August - September 18, 2014
+Version 1 (TurboBASIC XL): August - September 18, 2014
+Version 2 (C): June 30, 202 - July 13, 2021
 
-About
------
+NOTE: This document is not yet up-to-date with 2.0
+
+## About
 This game is based loosely the game "Lex", by Simple Machine, LLC,
-<http://www.simplemachine.co/>.  It is available for Android, iPhone
+<http://www.simplemachine.co/>.  It was available for Android, iPhone
 and on the web.  Its source code was made available under an
-open source license.
+open source license, although this game is not based on that source.
 
-Objective
----------
+## Objective
 The game presents you with a random set of letters.  Use the letters
 to construct words (of 3 or more letters each) and gain points for
 each letter used.  As you use letters, new letters appear to replace
@@ -33,8 +34,7 @@ Each level provides a multiplier bonus.  (e.g., letters worth 2 points
 provide a score gain of 4 points on level 2, 6 points on level 3, etc.)
 However, the speed at which meters fill increases at each new level.
 
-Start-up
---------
+## Start-up
 When you first run the game, you'll be asked to choose a dictionary.
 Currently, American English (EN_US), Spanish (ES_ES), and French (FR_FR)
 are available.  (Other languages are possible, see the "Extending" section,
@@ -52,8 +52,7 @@ again.
 Once the dictionary loads, the title screen will prompt you to press
 the [START] key to begin the game.
 
-Game Screen
------------
+## Game Screen
 Random letters will appear at the bottom of the screen.  Above each letter
 is the scoring value for the letter.  To the left of each letter is a
 vertical meter that rises over time.
@@ -71,8 +70,7 @@ As you press keys to enter a word, they appear in the center of the screen.
 Just below, the points you'd receive for the word (assuming it's valid)
 are shown (e.g., "+6", "+7 +2", etc.)
 
-Playing the Game
-----------------
+## Playing the Game
 Use the letter keys on the keyboard to enter letters and create words.
 
 Press [RETURN] to submit the word.  (If the word doesn't exist in
@@ -81,8 +79,7 @@ the dictionary, a tone will sound.)
 Press [BACKSPACE] to delete letters.  [SHIFT]+[BACKSPACE] and [ESC]
 both delete the entire word.
 
-How the Game Was Made
----------------------
+## How the Game Was Made
 Though the source code to "Lex" was open sourced by Simple Machine
 (see: http://www.simplemachine.co/2014/07/lex-is-open-source/),
 as of this writing (September 2014), I've so far only glanced at it once,
@@ -104,8 +101,7 @@ dictionary file for the game based on the 15 most frequent letters
 (e.g., for English, it finds ESIARTNOLDCUGPM).  You can use this yourself
 to create new dictionaries (see "Extending", below).
 
-Building the Game from Source
------------------------------
+## Building the Game from Source
 Prerequisites:
  * Make
  * PHP
@@ -160,8 +156,7 @@ Prerequisites:
      "E477")
 
 
-Extending
----------
+## Extending
 The game uses dictionaries that contain words made up of 15 ASCII
 letters -- for example, the English dictionary that comes with the
 game uses words consisting of ACDEGILMNOPRSTU.  This is so that the
