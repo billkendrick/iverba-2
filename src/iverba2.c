@@ -49,6 +49,7 @@ int entry_len;
 unsigned char * scr_mem;
 unsigned char ltr_scores[26];
 BOOL pal_speed;
+BOOL dark = FALSE; /* FIXME: Allow changing & save setting */
 
 
 void sleep(int i) {
@@ -686,7 +687,11 @@ void level_start(void) {
   if (level > 15) {
     level = 15;
   }
-  OS.color4 = (level << 4) + 14;
+  if (dark) {
+    OS.color4 = (level << 4) + 2;
+  } else {
+    OS.color4 = (level << 4) + 14;
+  }
   OS.color1 = (level << 4) + 8;
   sprintf(tmp_msg, "%dX", level);
   myprint(0, 0, tmp_msg);
@@ -932,7 +937,11 @@ void pressed_a_key(void) {
       }
 
       SCROLL(15 - (entry_len % 2) * 3);
-      OS.color4 = (level << 4) + 14;
+      if (dark) {
+        OS.color4 = (level << 4) + 2;
+      } else {
+        OS.color4 = (level << 4) + 14;
+      }
       SOUND(0, 0, 0, 0);
 
 /*
@@ -1186,8 +1195,12 @@ void main(void) {
   title();
 
   for (i = 0; i < 15; i++) {
-    OS.color4 = 16 + i; // => 30
-    OS.color1 = 16 + (i / 2); // => 24;
+    if (!dark) {
+      OS.color4 = 16 + i; // => 30
+    } else {
+      OS.color4 = 16 + (i / 4);
+    }
+    OS.color1 = 16 + (i / 2); // => 24
     OS.color2 = (i * 7) / 10; // => 10
     OS.color3 = 32 + (i / 7); // => 34
     while (ANTIC.vcount < 124);
