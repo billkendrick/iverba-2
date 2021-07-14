@@ -308,16 +308,18 @@ void title(void) {
 /*
 125 ? #6;"  based on lex for":? #6:? #6;"iphone {#6} android{#12} by":? #6;" simple machine llc"
 */
-  myprint(4, 3, "based on lex");
-  myprint(0, 5, "for iphone & android");
+  myprint(10 - strlen(VERSION) / 2, 3, VERSION);
+
+  myprint(4, 5, "based on lex");
   myprint(1, 7, "by simple machine");
-  myprint(10 - strlen(VERSION) / 2, 12, VERSION);
+
   myprint(10 - strlen(VERSION_DATE) / 2, 13, VERSION_DATE);
 
+  myprint(5, 14, "ANTIC DETECTED");
   if (pal_speed) {
-    myprint(5, 14, "PAL ANTIC");
+    myprint(1, 14, "PAL");
   } else {
-    myprint(5, 14, "NTSC ANTIC");
+    myprint(0, 14, "NTSC");
   }
 }
 
