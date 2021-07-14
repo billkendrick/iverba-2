@@ -15,7 +15,10 @@ CC65_FLAGS=-Osir --add-source
 all:	iverba2.atr
 
 run:	all
-	atari800 -nobasic iverba2.atr
+	atari800 -ntsc -nobasic iverba2.atr
+
+run-pal:	all
+	atari800 -pal -nobasic iverba2.atr
 
 clean:
 	-rm iverba2.atr

@@ -11,6 +11,9 @@
     June 30, 2021 - July 13, 2021
 */
 
+#define VERSION "PRE-RELEASE 2"
+#define VERSION_DATE "2021-07-13"
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -227,11 +230,11 @@ void setup_screen(void) {
   dl = PEEKW(560);
   scr_mem = (unsigned char *) PEEKW(88);
 
-  OS.color4 = 30;
   OS.color0 = 0;
-  OS.color1 = 24;
-  OS.color2 = 15;
-  OS.color3 = 34;
+  OS.color1 = 0;
+  OS.color2 = 0;
+  OS.color3 = 0;
+  OS.color4 = 0;
 
   OS.chbas = ((int) iverba2_fnt / 256);
 
@@ -289,8 +292,14 @@ void title(void) {
   myprint(4, 3, "based on lex");
   myprint(0, 5, "for iphone & android");
   myprint(1, 7, "by simple machine");
-  myprint(4, 12, "PRERELEASE 1");
-  myprint(5, 13, "2021-07-13");
+  myprint(10 - strlen(VERSION) / 2, 12, VERSION);
+  myprint(10 - strlen(VERSION_DATE) / 2, 13, VERSION_DATE);
+
+  if (GTIA_READ.pal == TV_STD_PAL) {
+    myprint(9, 14, "PAL");
+  } else {
+    myprint(8, 14, "NTSC");
+  }
 }
 
 
@@ -322,7 +331,7 @@ void cache_scores(void) {
 */
 void load_dict(void) {
   FILE * fi;
-  int alloc, i;
+  int alloc, i, dest, size, tot;
 
 /* FIXME: Allow dictionary selection */
 /*
@@ -389,9 +398,21 @@ void load_dict(void) {
 /* 
 185 POSITION 5,9:? #6;"loading...":BGET #%1,ADR(W$),ALLOC:CLOSE #%1
 */
-  myprint(5, 9, "loading...");
+  myprint(6, 9, "loading");
 
-  fread(words, sizeof(char), alloc, fi);
+  dest = words;
+  size = alloc / 8;
+  tot = 0;
+  for (i = 0; i < 8; i++) {
+    scr_mem[9 * 20 + 5] = 1 + (i * 3);
+    scr_mem[9 * 20 + 13] = 1 + (i * 3) + 1;
+    fread(dest, sizeof(char), size, fi);
+    dest = dest + size;
+    tot = tot + size;
+    if (tot + size > alloc) {
+      size = alloc - tot;
+    }
+  }
 
   fclose(fi);
 }
@@ -1049,7 +1070,9 @@ void game_loop(void) {
     if (OS.ch != 255) {
       pressed_a_key();
     }
-    show_meters();
+    if (OS.rtclok[2] & 2) {
+      show_meters();
+    }
 
 /*
 . End-of-game or end-of-level checks
@@ -1123,11 +1146,23 @@ void game_over(void) {
 
 
 void main(void) {
+  int i;
+
   kbcode_to_atascii = (char *) OS.keydef;
   SOUND_INIT();
   
   setup_screen();
   title();
+
+  for (i = 0; i < 14; i++) {
+    OS.color4 = 16 + i; // => 30
+    OS.color1 = 16 + (i / 2); // => 24;
+    OS.color2 = (i * 7) / 10; // => 10
+    OS.color3 = 32 + (i / 7); // => 34
+    while (ANTIC.vcount < 124);
+    while (ANTIC.vcount < 124);
+  }
+
   load_dict();
   load_high_score();
 
@@ -1136,7 +1171,7 @@ void main(void) {
 195 POKE 756,CH/256:POSITION %3,9:? #6;"press start..."
 */
 
-    myprint(3, 9, "press start...");
+    myprint(4, 9, "press START");
 
 /* FIXME */
 /*
