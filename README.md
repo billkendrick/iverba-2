@@ -1,9 +1,9 @@
 # Invenies Verba ("Find the Words")
-By Bill Kendrick <bill@newbreedsoftware.com>
-Version 1 (TurboBASIC XL): August - September 18, 2014
-Version 2 (C): June 30, 202 - July 13, 2021
+- By Bill Kendrick <bill@newbreedsoftware.com>
+- Version 1 (TurboBASIC XL): August - September 18, 2014
+- Version 2 (C): June 30, 202 - July 15, 2021
 
-NOTE: This document is not yet up-to-date with 2.0
+NOTE: This document is not yet fully up-to-date with 2.0
 
 ## About
 This game is based loosely the game "Lex", by Simple Machine, LLC,
@@ -35,6 +35,9 @@ provide a score gain of 4 points on level 2, 6 points on level 3, etc.)
 However, the speed at which meters fill increases at each new level.
 
 ## Start-up
+
+### Note: This pre-release does not offer multiple dictionaries
+
 When you first run the game, you'll be asked to choose a dictionary.
 Currently, American English (EN_US), Spanish (ES_ES), and French (FR_FR)
 are available.  (Other languages are possible, see the "Extending" section,
@@ -53,7 +56,7 @@ Once the dictionary loads, the title screen will prompt you to press
 the [START] key to begin the game.
 
 ## Game Screen
-Random letters will appear at the bottom of the screen.  Above each letter
+Random letters will appear in the middle of the screen.  Above each letter
 is the scoring value for the letter.  To the left of each letter is a
 vertical meter that rises over time.
 
@@ -80,83 +83,182 @@ Press [BACKSPACE] to delete letters.  [SHIFT]+[BACKSPACE] and [ESC]
 both delete the entire word.
 
 ## How the Game Was Made
+### The original
 Though the source code to "Lex" was open sourced by Simple Machine
 (see: http://www.simplemachine.co/2014/07/lex-is-open-source/),
 as of this writing (September 2014), I've so far only glanced at it once,
 which helped me understand the game's scoring a little better.
 
-Invenies Verba was produced on a Linux laptop using a PHP script
-I created during the NOMAM 2014 "BASIC 10-Liners" contest, which allows
-me to create a BASIC program listing as a plain ASCII text file
-(using, e.g.,"{heart}" and "{^a}" to represent ATASCII characters
-0 and 1).  A Makefile then uses Franny to generate a disk image
-containing MyDOS, TurboBASIC XL, a small bootstrap BASIC program,
-and the BASIC program listing, then launches the Atari800 emulator
+The original Invenies Verba, created in 2014, was produced on a
+Linux laptop using a PHP script I created during the NOMAM 2014
+"BASIC 10-Liners" contest, which allows me to create a BASIC program
+listing as a plain ASCII text file (using, e.g.,"{heart}" and "{^a}"
+to represent ATASCII characters 0 and 1).  A Makefile then used the
+tool "Franny" to generate a disk image containing MyDOS, TurboBASIC XL,
+a small bootstrap BASIC program, and the BASIC program listing.
+It then launched the Atari800 emulator and booted the disk.
 (See: http://newbreedsoftware.com/atari/linux2tbasicxl/)
+MyDOS would boot and run TurboBASIC XL, and the bootstrap program
+would `ENTER` the source code file, which could then be `RUN` or
+`SAVE`-ed as a tokenized BASIC program file.
 
-Another PHP script was created that analyzes a dictionary file
+The official release of the game was created by taking the tokenized
+version and running it through the TurboBASIC XL compiler, which
+created a byte-code version of the game which ran under the
+TBXL runtime.
+
+Another PHP script was created that analyzed a dictionary file
 (e.g., "/usr/share/dict/american-english") to determine the most
-frequently-used letters and their frequency.  It then creates a
+frequently-used letters and their frequency.  It then created a
 dictionary file for the game based on the 15 most frequent letters
 (e.g., for English, it finds ESIARTNOLDCUGPM).  You can use this yourself
 to create new dictionaries (see "Extending", below).
 
-## Building the Game from Source
-Prerequisites:
- * Make
- * PHP
- * Franny
- * Atari800 emulator
+### The rewrite
+In 2021, I took the TurboBASIC XL source code and ported it,
+more-or-less line-by-line, to the C language.  The build process
+now uses the "cc65" compiler tools to generate an Atari executable
+program, which it places on a disk.  The relatively new minimal,
+game-oridented DOS "uDOS" (micro DOS) is now used instead of MyDOS.
 
- 1. Type "make run" to convert the source from ASCII (iverba.txt)
-    to ATASCII (iverba.lst) and assemble files into a disk image,
-    and launch Atari800 emulator.  TurboBASIC XL will load,
-    a bootstrap BASIC program will run, which in turn loads the
-    ATASCII listing for the game, and run it.
+This gives flexibility in adding new features, as well as
+improving performance of the game.
 
- 2. Hit [Break] to return to a BASIC prompt, and save the program:
-    SAVE "D:IVERBA.TBS"
+## Some technical features
+### Binary search
+The game uses a binary search routine to find whether or not
+a word you've entered exists in its dictionary.  It starts
+at the middle, and depending on whether your word is earlier
+or later in the dictionary, jumps backward or forward to
+the beginning or end.  It then repeats this process, using
+smaller and smaller steps.
 
- 3. Use Atari800's "Disk Management" feature (via [F1] option) to
-    mount the TurboBASIC XL compiler disk image, "tbxl_compiler.atr"
-    (found in the the "tbasic" subdirectory) onto drive 2 (D2:).
+Say a dictionary contained only these few words:
 
- 4. Exit TurboBASIC XL and go to the MyDOS menu:
-    DOS
+- Apple
+- Banana
+- Cherry
+- Orange
+- Pear
+- Pretzel
+- Strawberry
 
- 5. Launch the TubroBASIC XL compiler from DOS.  Type [L] (Load Memory),
-    then enter:
-    D2:COMPILER.OBJ
+If you wanted to find out if the word "Banana" was there,
+such a search would first compare that to the word in the
+very middle: "Orange".
 
- 6. Type [1] to get a listing of files on drive 1 (D1:) and select
-    the "IVERBA.TBS" entry.  TurboBASIC XL will compile the code.
+"Banana" is earlier, so it jumps up by half of the size of the dictionary,
+to the very first word: "Apple".
 
- 7. When prompted for a filename, enter "D1:AUTORUN.CTB"
+"Banana" comes after "Apple", so it jumps forward by a quarter of the size of
+the dictionary, to "Cherry".  "Banana" comes before "Cherry", so now it jumps
+backward again, this time by an eighth the size of the dictionary, and finds
+"Banana".
 
- 8. When prompted to save again ("Noch einmal speichern (J/N)?"),
-    press [N].  Press [Control]+[D] and then [J] to return to MyDOS.
+If instead you entered "Pineapple", it would go from "Orange"
+to "Strawberry", then back up to "Pear", then forward to
+"Pretzel".  It will not find the word, because it doesn't exist.
 
- 9. Delete unnecessary files from the disk image using the [D]
-    (Delete File(s)) command, and then entering a file name, once each for:
-    TBASIC.AR0
-    AUTORUN.BAS
-    PROGRAM.LST
-    IVERBA.TBS
+### Fine horizontal scrolling
+As you enter letters for your word, fine horizontal scrolling is
+used to move that line of the screen half a character to the left
+whenever the word is an odd number of letters long.
 
- 10. Copy the runtime software for compiled TurboBASIC XL programs
-     off of the "tbxl_compiler.atr" disk image on drive 2, and onto
-     drive 1.  Press [C] (Copy File(s)), then enter:
-     D2:RUNTIME.OBJ,D1:RUNTIME.AR0
-     (Note: ".AR0" makes it the first thing that loads after DOS.SYS
-     has loaded.)
+This allows the text to always remain centered on the screen,
+rather than the word moving left after every other letter is
+entered.
 
- 11. Now you should be able to boot into the "iverba.atr" disk image
-     again and the compiled version of the game will automatically load!
-     (From MyDOS, you could use [M] (Run at Address), the enter
-     "E477")
+The scroll register is also used when you try to enter a
+non-existent word, by randomly 'shaking' the word around
+for a moment while the screen flashes red and it plays an
+unhappy sound effect.
 
+### Half font effect
+The Atari 8-bit has the ability to use user-defined character
+sets (fonts).  1,024 bytes are used to define 128 ATASCII
+characters.  (In most modes, they are monochrome, and 8x8.
+There are 8 bits per byte, and 8 bytes per character.)
+
+In a standard text mode (`GRAPHICS 0` in Atari BASIC and OS parlance),
+you get those symbols, plus inverse-video (think "highlighted") versions
+of the same, giving you 256 symbols to display.  The highest bit
+of the character is used to enable inverse video.  The lower seven
+bits choose which of the 128 characters to display.
+
+In the large text modes used by this game (`GRAPHICS 1` and
+`GRAPHICS 2`) only 64 symbols are available.  The TWO highest
+bits of the character are used to pick which color from the
+Atari's 4 playfield colors should be used.  The lower SIX bits
+choose which of the 64 characters to display.  (As you might
+have noticed, inverse-video is not offered in these modes.)
+
+Normally, the 'top half' of a character set is used, which
+includes the uppercase alphabet, punctuation, and numerals.
+(ATASCII characters 32 (space) through 95 (underscore).)
+
+So if you display some alphabetic text containing lowercase,
+it will appear as uppercase, but in a different color (than
+if you had entered the text in uppercase).  If you apply inverse
+to the character, you get uppercase (NOT in inverse-video)
+in a third color.  And inverse plus lowercase gives you the
+letter (again in uppercase, and not inverse-video) in
+a fourth color.
+
+You can access the 'other half' of a character set in these
+graphics modes by pointing the Atari's ANTIC chip at the second
+half of the character set data (512 bytes, or "2 pages" later).
+
+In Atari BASIC, try `GRAPHICS 2:POKE 756,226:?#6;"HELLO"`.
+It will appear in lowercase.  Note also that the entire
+large text area of the screen shows the heart symbol
+(normally printed as character 0) rather than blank spaces
+(character 32), due to this effect.  Use `POKE 756,224` to
+get back to normal.  (And note that what's shown in the
+`GRAPHICS 0`-style text window at the bottom is not affected.)
+
+This game uses a full 1KB font, with all 128 symbols
+redefined.  A Display List Interrupt is utilized to
+do this adjustment for one line -- where the game tiles
+(the available letters) are shown on the screen.
+
+This allows the full alphabet to appear in a completely
+different style for those tiles than for the rest of the
+interface (title screen, credits, score, the word you're
+entering, etc.).
+
+### NTSC vs PAL detection
+The game attempts to play the same speed (in terms of how
+quickly letter meters fill up, at least) regardless as
+to whether you're playing on an NTSC- or PAL-based system.
+
+The gameplay does not utilize Vertical Blank Interrupts
+(because the game was ported from TurboBASIC XL!), but
+does keep an eye on the realtime clock registers in the
+Atari OS, which are ticked up every VBI.  On NTSC that's
+60 times per second, and on PAL it's 50 times per second.
+
+True PAL Ataris have both PAL GTIA and ANTIC chips,
+and there's a register in GTIA that can be read to
+determine if the system is PAL or NTSC.
+
+However, some Atari users (I've personally done this myself)
+have taken NTSC Atari systems and plugged PAL ANTIC chips
+into them, to gain the longer VBI period provided by a PAL
+system, and this allowing PAL-only games and demoscene demos
+to run (with some slight adjustment of a monitor's vertical-hold
+controls).
+
+Therefore, a more reliable method of detecting whether a system
+is PAL or NTSC is to, in a very tight loop, watch how far
+ANTIC's `VCOUNT` register climbs before cycling back to zero.
+This works because, while the PAL standard refresh less frequently,
+it offers more scanlines than NTSC.  The `VCOUNT` register won't
+go as high on an NTSC system.
 
 ## Extending
+
+### Note: This pre-release does not offer multiple dictionaries
+
 The game uses dictionaries that contain words made up of 15 ASCII
 letters -- for example, the English dictionary that comes with the
 game uses words consisting of ACDEGILMNOPRSTU.  This is so that the
@@ -182,5 +284,3 @@ output of "apt-cache showpkg wordlist".  For example,
 The other option the "mkdict.php" program accepts is the maximum length
 of words, e.g. 8.  It may be necessary to make dictionaries with
 smaller words, to fit everything within the Atari's memory constraints.
-(As of Sept. 2014, the game has approx. 26.5KB free, before loading
-a dictionary file.)

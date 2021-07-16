@@ -1,6 +1,7 @@
 TODO for Invenies Verba 2.0
-2021-07-13
+2021-07-15
 
+ * Fine-tune speeds
  * Dark mode toggle & save setting
  * Music of some sort
  * Documentation update
