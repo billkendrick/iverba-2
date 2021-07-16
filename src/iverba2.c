@@ -8,11 +8,11 @@
     August - September 2017
 
   * cc65 port:
-    June 30, 2021 - July 15, 2021
+    June 30, 2021 - July 16, 2021
 */
 
-#define VERSION "PRE-RELEASE 2"
-#define VERSION_DATE "2021-07-15"
+#define VERSION "PRE-RELEASE 3"
+#define VERSION_DATE "2021-07-16"
 
 #include <stdio.h>
 #include <string.h>
@@ -52,6 +52,11 @@ BOOL pal_speed;
 BOOL dark = FALSE; /* FIXME: Allow changing & save setting */
 
 
+/*
+  Sleep a moment.
+
+  @param int i -- how long to sleep (screen refreshes)
+*/
 void sleep(int i) {
   unsigned char target;
 
@@ -59,6 +64,14 @@ void sleep(int i) {
   do { } while (OS.rtclok[2] != target);
 }
 
+
+/*
+  Alters horizontal scroll register
+  (waits for a VBI to complete first!)
+
+  @param unsigned char h -- how far to scroll
+  @sideeffects changes horiz. scroll register
+*/
 void SCROLL(unsigned char h) {
   unsigned char r;
 
@@ -68,6 +81,15 @@ void SCROLL(unsigned char h) {
   ANTIC.hscrol = h;
 }
 
+
+/*
+  Displays text on the screen.
+
+  @param unsigned char x -- horizontal position (column, 0 = left, 19 = right)
+  @param unsigned char y -- vertical position (row, 0 = top, 23 = bottom; note: screen has a custom display list)
+  @param string str -- text to display
+  @sideeffects displays the text
+*/
 void myprint(unsigned char x, unsigned char y, char * str) {
   int pos, i;
   unsigned char c;
@@ -88,9 +110,10 @@ void myprint(unsigned char x, unsigned char y, char * str) {
 
 
 /*
-. Grab the 'A'th word
-20 P=ADR(W$)+(A*H_WORDLEN):LADR=ADR(L$):AADR=ADR(A$):FOR I=%0 TO H_WORDLEN-%1:W=PEEK(P+I)
-25 B1=W&15:B2=(W&240)/16:DPOKE AADR+I*%2,PEEK(LADR+B1*%2)+PEEK(LADR+B2*%2)*256:NEXT I:RETURN
+  Grab a word from the dictionary.
+
+  @param int a -- the word to grab
+  @sideeffect places the word in global string `grabbed_word`
 */
 void grabword(int a) {
   int i, w, p;
@@ -109,16 +132,15 @@ void grabword(int a) {
 }
 
 /*
-. Binary-search for word 'I$'
+  Search for a word in the dictionary.
+
+  @param char * str -- string to search for
+  @return BOOL true if found, false if not
 */
 unsigned char binsearch(char * str) {
   char padded_str[9];
   int cut, cursor, smallstep_tries, i, cmp;
   BOOL found;
-
-/*
-30 CUT=MID*%2:A=MID:FOUND=%0:WHILE LEN(I$)<WORDLEN:I$(LEN(I$)+1)=" ":WEND:LAST=%0
-*/
 
   /* Binary search starts with the cursor in the middle,
      and cuts things in half each time */
@@ -133,13 +155,6 @@ unsigned char binsearch(char * str) {
     padded_str[i] = ' ';
   }
   padded_str[wordlen] = '\0';
-
-/*
-40 GOSUB 20:IF A$=I$ OR LAST>10 THEN FOUND=(A$=I$):RETURN
-50 CUT=INT(CUT/%2):IF CUT=%0 THEN CUT=%1:LAST=LAST+%1
-60 IF A$<I$:A=A+CUT:IF A>=NUMWORDS:A=NUMWORDS-%1:ENDIF:ELSE:A=A-CUT:ENDIF
-70 GOTO 40
-*/
 
   /* Binary-search the dictionary */
   smallstep_tries = 0;
@@ -173,7 +188,7 @@ unsigned char binsearch(char * str) {
 }
 
 /*
-Display List Interrupts
+  Display List Interrupt
 */
 #pragma optimize (push, off)
 void dli(void)
@@ -184,11 +199,14 @@ void dli(void)
   asm("tya");
   asm("pha");
 
+  /* Set ANTIC.chbase ahead 2 pages, to utilize the
+     other half of the character set... */
   asm("lda %w", (unsigned)&OS.chbas);
   asm("adc #2");
   asm("sta %w", (unsigned)&ANTIC.wsync);
   asm("sta %w", (unsigned)&ANTIC.chbase);
 
+  /* ...for one GRAPHICS 2 line... */
   asm("lda %w", (unsigned)&OS.chbas);
   asm("sta %w", (unsigned)&ANTIC.wsync);
   asm("sta %w", (unsigned)&ANTIC.wsync);
@@ -206,6 +224,8 @@ void dli(void)
   asm("sta %w", (unsigned)&ANTIC.wsync);
   asm("sta %w", (unsigned)&ANTIC.wsync);
   asm("sta %w", (unsigned)&ANTIC.wsync);
+
+  /* ...then set it back to normal for the rest of the screen */
   asm("sta %w", (unsigned)&ANTIC.chbase);
 
   asm("pla");
@@ -220,19 +240,21 @@ void dli(void)
 
 
 /*
-. Set up screen
+  Set up the display.
 */
 void setup_screen(void) {
   unsigned int dl, crossed, max_vcount;
 
-/*
-110 GRAPHICS 17:DL=DPEEK(560):SC=DPEEK(88):POKE 712,30:POKE 708,0:POKE 709,24:POKE 710,15:POKE 711,34
-112 POKE 65,%0
-*/
+  /* Start with a full-screen (no text-window) "GRAHICS 1" (20x24)
+     display, which we'll modify */
+
   _graphics(17);
+
+  /* Grab pointers to display list & screen memory */
   dl = PEEKW(560);
   scr_mem = (unsigned char *) PEEKW(88);
 
+  /* All colors to black */
   OS.color0 = 0;
   OS.color1 = 0;
   OS.color2 = 0;
@@ -255,66 +277,94 @@ void setup_screen(void) {
     pal_speed = TRUE;
   }
 
+  /* Set the character set to our redefined font */
   OS.chbas = ((int) iverba2_fnt / 256);
 
   OS.soundr = 0;
 
-/*
-115 POKE DL+%3,7+64:DPOKE DL+4,SC:POKE DL+6,%0:POKE DL+7,7:POKE DL+8,112:POKE DL+9,6:POKE DL+10,112
-*/
+  /* One line of GRAPHICS 2
+     (In-game, level & score go here;
+     on title screen, game's name goes here) */
   POKE(dl+3,DL_LMS(DL_GRAPHICS2));
   POKEW(dl+4,(unsigned int) scr_mem);
+
+  /* One blank scanline */
   POKE(dl+6,DL_BLK1);
+
+  /* Another line of GRAPHICS 2
+     (In-game, the words-per-level meter goes here;
+     on title screen, author's name goes here) */
   POKE(dl+7,DL_GRAPHICS2);
+
+  /* Eight blank scanlines (height of GRAPHICS 1) */
   POKE(dl+8,DL_BLK8);
+
+  /* One line of GRAPHICS 1
+     (not currently used?) */
   POKE(dl+9,DL_GRAPHICS1);
+
+  /* Eight blank scanlines */
   POKE(dl+10,DL_BLK8);
 
-/*
-116 POKE DL+11,7+16:POKE DL+12,6+16+64:DPOKE DL+13,SC+(5*20):POKE DL+15,6+64:DPOKE DL+16,SC+(7*20)
-*/
+  /* One line of GRAPHICS 2, which can scroll horizontally
+     (for precise centering).
+     (In-game, used for words as you type them)
+  */
   POKE(dl+11,DL_HSCROL(DL_GRAPHICS2));
+
+  /* One line of GRAPHICS 1, which can scroll horizontally
+     (Not used in game). Also, set Load Memory Scan! */
   POKE(dl+12,DL_LMS(DL_HSCROL(DL_GRAPHICS1)));
   POKEW(dl+13,((unsigned int) scr_mem)+(5*20));
+
+  /* One line of GRAPHICS 1.
+     (In game, used to show accumulated score for current word.)
+     Also, set Load Memory Scan again */
   POKE(dl+15,DL_LMS(DL_GRAPHICS1));
   POKEW(dl+16,((unsigned int) scr_mem)+(7*20));
 
-/*
-117 POKE DL+18,112:POKE DL+19,112:POKE DL+20,6:POKE DL+21,%0:POKE DL+22,7:POKE 54276,15
-*/
+  /* 18 blank scalines */
   POKE(dl+18,DL_BLK8);
   POKE(dl+19,DL_BLK8);
+
+  /* One line of GRAPHICS 1 */
   POKE(dl+20,DL_GRAPHICS1);
+
+  /* One blank scanline */
   POKE(dl+21,DL_DLI(DL_BLK1));
+
+  /* One line of GRAPHICS 2 */
   POKE(dl+22,DL_GRAPHICS2);
 
+  /* Default scroll setting */
   SCROLL(15);
 
-
+  /* Enable DLI */
   ANTIC.nmien = NMIEN_VBI;
   while (ANTIC.vcount < 124);
   OS.vdslst = (void *) dli;
   ANTIC.nmien = NMIEN_VBI | NMIEN_DLI;
 }
 
+
+/* Draw bare minimum of title screen */
 void title(void) {
+  /* Blank the screen */
   bzero(scr_mem, 20 * 24);
 
-/*
-120 ? #6;" INVENIES VERBA 1.0":? #6;" `bill kendrick {#18}{#16}{#17}{#20}`":? #6
-*/
+  /* Draw title, author, version */
   myprint(1, 0, "INVENIES VERBA 2.0");
   myprint(1, 1, "bill kendrick 2021");
-/*
-125 ? #6;"  based on lex for":? #6:? #6;"iphone {#6} android{#12} by":? #6;" simple machine llc"
-*/
   myprint(10 - strlen(VERSION) / 2, 3, VERSION);
 
+  /* Based-on... */
   myprint(4, 5, "based on lex");
   myprint(1, 7, "by simple machine");
 
+  /* Version date */
   myprint(10 - strlen(VERSION_DATE) / 2, 13, VERSION_DATE);
 
+  /* ANTIC or NTSC */
   myprint(5, 14, "ANTIC DETECTED");
   if (pal_speed) {
     myprint(1, 14, "PAL");
@@ -325,14 +375,10 @@ void title(void) {
 
 
 /*
-. Make it easy to look up letter scores using ASCII value
-1150 PROC CACHE_SCORES
-1155   DIM LTR_SCORES(26)
-1160   FOR J=%1 TO NUMLETTERS-%1
-1170     L=ASC(L$(J*%2+%1,J*%2+%1)):L=L-ASC("a")
-1180     LTR_SCORES(L)=ASC(L$(J*%2+%2,J*%2+%2))
-1190   NEXT J
-1195 ENDPROC
+  Cache scores
+  (Make it easy to look up letter scores using their ASCII values)
+
+  @sideeffect Fills global array `ltr_scores[]`
 */
 void cache_scores(void) {
   int j, l;
@@ -348,7 +394,25 @@ void cache_scores(void) {
 }
 
 /*
-. Load dictionary
+  Load dictionary from disk
+
+  @sideeffect sets global `num_words` to number of words in dictionary
+  @sideeffect sets global `dict_ptr_mid` to `num_words / 2`
+  @sideeffect sets global `wordlen` to max size of words in dictionary
+  @sideeffect sets global `half_wordlen` to `wordlen / 2`
+  @sideeffect sets global `num_letters` to number of letters used by words in dictionary
+  @sideeffect fills global array `ltr_scores[]` (via `cache_scores()`)
+  @sideeffect allocates space for global string `grabbed_word`
+  @sideeffect allocates space for global string `best_word`
+  @sideeffect allocates space for global string `input`
+  @sideeffect allocates space for global string `avail`
+  @sideeffect allocates space for global BOOL array `used`
+  @sideeffect allocates space for global char array `src`
+  @sideeffect allocates space for global int array `mad`
+  @sideeffect allocates space for, and fills, global string `blank`
+  @sideeffect allocates space for, and fills, global char array `words` (the dictionary buffer), or displays error & infinite-loops
+  @sideeffect allocates space for, and fills, char array `lookups`
+  @sideeffect displays how many words, and word size, on the screen
 */
 void load_dict(void) {
   FILE * fi;
@@ -362,17 +426,15 @@ void load_dict(void) {
   fi = fopen("EN_US.DIC", "rb");
   /* FIXME: Check for error */
 
-/*
-140 GET #%1,NUMWORDS_L:GET #1,NUMWORDS_H:NUMWORDS=(NUMWORDS_H*256)+NUMWORDS_L:MID=INT(NUMWORDS/%2)
-150 GET #%1,WORDLEN:H_WORDLEN=WORDLEN/%2:DIM A$(WORDLEN),I$(WORDLEN),BEST$(WORDLEN),AVAIL$(WORDLEN),BLANK$(20),C$(%1)
-151 DIM USED(WORDLEN),SRC(WORDLEN)
-*/
+  /* Grab details of the dictionary: how many words, how big are words? */
   num_words = fgetc(fi) + fgetc(fi) * 256;
   dict_ptr_mid = num_words / 2;
 
   wordlen = fgetc(fi);
   half_wordlen = wordlen / 2;
 
+  /* Allocate space for things based on the word length dictated by the
+     dictionary being used */
   grabbed_word = (char *) malloc((wordlen + 1) * sizeof(char));
   best_word = (char *) malloc((wordlen + 1) * sizeof(char));
   input = (char *) malloc((wordlen + 1) * sizeof(char));
@@ -381,24 +443,18 @@ void load_dict(void) {
   src = (unsigned char *) malloc((wordlen) * sizeof(char));
   mad = (unsigned int *) malloc((wordlen) * sizeof(int));
 
-/*
-155 BLANK$=" ":BLANK$(20)=" ":BLANK$(2)=BLANK$:A$=BLANK$
-*/
+  /* Allocate space for `blank` string & fill it, too */
   blank = (char *) malloc((wordlen + 1) * sizeof(char));
   for (i = 0; i < wordlen; i++) {
     blank[i] = ' ';
   }
   blank[wordlen] = '\0';
 
-/*
-160 ? #6;NUMWORDS;" ";WORDLEN;"-letter words"
-*/
+  /* Show stats on the title */
   sprintf(tmp_msg, "%d %d-letter words", num_words, wordlen);
   myprint(0, 8, tmp_msg);
 
-/*
-170 ALLOC=NUMWORDS*H_WORDLEN:DIM W$(ALLOC):W$=" ":W$(ALLOC-%1)=" ":W$(%2)=W$
-*/
+  /* Allocate space for the dictionary */
   alloc = num_words * half_wordlen;
 
   if (_heapmaxavail() < alloc) {
@@ -408,17 +464,15 @@ void load_dict(void) {
 
   words = (char *) malloc(alloc * sizeof(char));
 
-/*
-180 GET #%1,NUMLETTERS:DIM L$(NUMLETTERS*%2):L$(NUMLETTERS*2)="{heart}":BGET #%1,ADR(L$),NUMLETTERS*%2:EXEC CACHE_SCORES
-*/
+  /* Grab how many letters used in the dictionary */
   num_letters = fgetc(fi);
+
+  /* Read the letters and their scores; make a reverse-look-up */
   lookups = (char *) malloc((num_letters * 2) * sizeof(char));
   fread(lookups, sizeof(char), num_letters * 2, fi);
   cache_scores();
 
-/* 
-185 POSITION 5,9:? #6;"loading...":BGET #%1,ADR(W$),ALLOC:CLOSE #%1
-*/
+  /* Load things (in 8 chunks, so we can show meters) */
   myprint(6, 9, "loading");
 
   dest = words;
@@ -439,8 +493,9 @@ void load_dict(void) {
 }
 
 /*
-. Load high score
-186 TRAP 190:OPEN #%1,4,%0,"D:HISCORE.DAT":INPUT #%1,HISCORE:CLOSE #%1
+  Load high score
+
+  @sideeffect fills global long `hiscore`, or shows a "no high score file" message momentarily
 */
 void load_high_score(void) {
   unsigned char * ptr;
@@ -462,8 +517,9 @@ void load_high_score(void) {
 }
 
 /*
-. Save high score
-2030 TRAP 2040:CLOSE #%1:OPEN #%1,8,%0,"D:HISCORE.DAT":? #%1;HISCORE:CLOSE #%1
+  Save high score
+
+  @sideeffect displays message showing success or failure of high score saving
 */
 void save_high_score(void) {
   unsigned char * ptr;
@@ -488,14 +544,13 @@ void save_high_score(void) {
 
 
 /*
-. More set-up and create font
-190 DIM MAD$(9),MAD(WORDLEN):MAD$=" `{^a}{^b}{^d}{^e}{^g}{^h}{^i}{^j}`":CH=(PEEK(106)-16)*256:MOVE 224*256,CH,1024
-191 MOVE ADR("{#0}{#0}{#0}{#0}{#0}{#0}{#0}{#3}{#0}{#0}{#0}{#0}{#0}{#0}{#3}{#3}{#85}{#170}{#85}{#170}{#85}{#170}{#85}{#170}"),CH+8,24
-192 MOVE ADR("{#0}{#0}{#0}{#0}{#0}{#3}{#3}{#3}{#0}{#0}{#0}{#0}{#3}{#3}{#3}{#3}"),CH+32,16
-193 MOVE ADR("{#0}{#0}{#0}{#3}{#3}{#3}{#3}{#3}{#0}{#0}{#3}{#3}{#3}{#3}{#3}{#3}{#0}{#3}{#3}{#3}{#3}{#3}{#3}{#3}{#3}{#3}{#3}{#3}{#3}{#3}{#3}{#3}"),CH+56,32
+  Convert an available letter's "madness" value to
+  an animated flame character to display on screen.
+
+  @param unsigned char madness -- how 'mad' the letter is (0 to 8)
+  @param int offset -- an offset (to avoid all animations lining up)
+  @return char the caller should display
 */
-
-
 unsigned char get_mad_sym(unsigned char madness, int offset) {
   if (madness == 0) {
     return(0);
@@ -506,23 +561,15 @@ unsigned char get_mad_sym(unsigned char madness, int offset) {
 
 
 /*
-. Show available letters
-1300 PROC SHOW_AVAIL
+  Show available letters
+
+  @sideeffect displays available letters and their 'madness' meters
 */
 void show_avail(void) {
   int x, i;
   char c, mad_sym;
 
-/*
-1305   X=10-((WORDLEN/%2)*%2)
-*/
   x = 10 - ((wordlen / 2) * 2);
-
-/*
-1310   FOR I=%1 TO WORDLEN
-1320     C$=AVAIL$(I,I):C=ASC(C$)
-1330     IF USED(I) THEN C$=CHR$(C-32)
-*/
 
   for (i = 0; i < wordlen; i++) {
     c = avail[i];
@@ -530,51 +577,34 @@ void show_avail(void) {
       c = c - 32; /* change color */
     }
 
-/*
-1340     POSITION X,9:M=MAD(I)+%1:?#6;MAD$(M,M);C$
-*/
     mad_sym = get_mad_sym(mad[i] >> 8, i);
 
     sprintf(tmp_msg, "%c%c", mad_sym + ' ', c);
     myprint(x, 9, tmp_msg);
 
-/*
-1350     S=LTR_SCORES(C-ASC("a")):POSITION X+(S<10),8:?#6;S
-1360     IF S<10 THEN ?#6;" "
-*/
     sprintf(tmp_msg, "%2d", ltr_scores[avail[i] - 'a']);
     myprint(x, 8, tmp_msg);
 
-/*
-1370     X=X+%2
-1380   NEXT I
-1390 ENDPROC
-*/
     x += 2;
   }
 }
 
 /*
-. Deal letters
-1200 PROC DEAL_LETTERS
+  Deal letters -- for any available letter that's not set,
+  set it.  While doing so, ensure a certain percentage of
+  vowels are in the list.
+
+  @sideeffect sets letters within global char array `avail`, as appropriate
+  @sideeffect zeros corresponding elements within int array `mad`
+  @sideeffect shows available letters (by calling `show_avail()`)
 */
 void deal_letters(void) {
   int i, j, vowels, z;
   char c;
   BOOL need_vowel, is_vowel, retry;
 
-/*
-. Make sure we always have some vowels
-1201   VOWELS=%0
-*/
   vowels = 0;
 
-/*
-1202   FOR I=1 TO WORDLEN
-1203     C$=AVAIL$(I,I)
-1204     IF C$="a" OR C$="e" OR C$="i" OR C$="o" OR C$="u" THEN VOWELS=VOWELS+%1
-1205   NEXT I
-*/
   for (i = 0; i < wordlen; i++) {
     c = avail[i];
     if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u') {
@@ -582,35 +612,15 @@ void deal_letters(void) {
     }
   }
 
-/*
-1206   NEED_VOWEL=((VOWELS/WORDLEN)<0.25)
-*/
   need_vowel = (((vowels * 4) / wordlen) < 1);
 
-/*
-1210   FOR I=1 TO WORDLEN
-1220     IF AVAIL$(I,I)=" "
-*/
   for (i = 0; i < wordlen; i++) {
     if (avail[i] == ' ') {
 
-/*
-1230       REPEAT
-1231         Z=RAND((LEN(L$)/%2)-%1)+%1:C$=L$(Z*%2+%1,Z*%2+%1):IS_VOWEL=(C$="a" OR C$="e" OR C$="i" OR C$="o" OR C$="u")
-*/
       do {
         z = POKEY_READ.random % num_letters;
         c = lookups[z * 2];
         is_vowel = (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u');
-
-/*      
-1232         RETRY=((NEED_VOWEL=%1 AND (NOT IS_VOWEL))+(INSTR(AVAIL$, C$)<>0))
-1233 .          RETRY=%0
-1234 .          FOR J=%1 TO WORDLEN
-1235 .            IF AVAIL$(J,J)=C$ THEN RETRY=%1
-1236 .          NEXT J
-1238 .        ENDIF
-*/
 
         retry = (need_vowel && !is_vowel);
         for (j = 0; j < wordlen; j++) {
@@ -618,44 +628,41 @@ void deal_letters(void) {
             retry = TRUE;
           }
         }
-/*
-1239       UNTIL RETRY=%0
-*/
       } while (retry);
 
-/*
-1240       AVAIL$(I,I)=C$:MAD(I)=%0
-*/
       avail[i] = c;
       mad[i] = 0;
 
-/*
-1245       IF (IS_VOWEL) THEN VOWELS=VOWELS+1:NEED_VOWEL=((VOWELS/WORDLEN)<0.25)
-*/
       if (is_vowel) {
         vowels++;
         need_vowel = (((vowels * 4) / wordlen) < 1);
       }
     }
   }
-/*
-1250     ENDIF
-1260   NEXT I
-1270   EXEC SHOW_AVAIL
-1280 ENDPROC
-*/
+
   show_avail();
 }
 
 /*
-. Game start
+  Game start -- init a new a game.
+
+  @sideeffect sets global BOOL `gameover` to FALSE
+  @sideeffect sets global `level` to 1
+  @sideeffect zeroes global `score`
+  @sideeffect sets global `got_high_score` to FALE
+  @sideeffect blanks global string `best_word`
+  @sideeffect zeroes global `best`
+  @sideeffect clears the screen
+  @sideeffect zeroes global `entry_len`
+  @sideeffect copies white-space padded `blank` string to into global `input`
+  @sideeffect fills global string `avail` with dealt letters (via `deal_letters()`)
+  @sideeffect zeros corresponding elements within int array `mad` (via `deal_letters()`)
+  @sideeffect fills global BOOL array `used` with FALSE
+  @sideeffect shows available letters (by calling `show_avail()`) (via `deal_letters()`)
 */
 void game_start(void) {
   int i;
 
-/*
-300 GAMEOVER=%0:LEVEL=%1:SCORE=%0:BEST$="":BEST=%0:? #6;"{clear}";:ENTRY_LEN=%0:I$=BLANK$
-*/
   gameover = FALSE;
   level = 1;
   score = 0;
@@ -665,10 +672,6 @@ void game_start(void) {
   bzero(scr_mem, 20 * 24);
   entry_len = 0;
   strcpy(input, blank);
-
-/*
-310 AVAIL$=BLANK$:FOR I=%1 TO WORDLEN:USED(I)=%0:NEXT I:EXEC DEAL_LETTERS:EXEC SHOW_AVAIL
-*/
   strcpy(avail, blank);
   for (i = 0; i < wordlen; i++) {
     used[i] = FALSE;
@@ -679,83 +682,69 @@ void game_start(void) {
 }
 
 /*
-. Level start
+  Level start -- start of a new level
+
+  @sideeffect sets global `level` to 15 if it exceeds it
+  @sideeffect changes color palette
+  @sideeffect displays level number
+  @sideeffect zeroes global `word_cnt`
+  @sideeffect displays empty word count meter
 */
 void level_start(void) {
-/*
-400 IF LEVEL>15 THEN LEVEL=15
-410 POKE 712,(LEVEL*16)+14:POKE 709,(LEVEL*16)+8:POSITION %0,%0:?#6;LEVEL;"X":EXEC SHOW_SCORE
-*/
+  /* Cap out at 15 */
   if (level > 15) {
     level = 15;
   }
+
+  /* Each level uses a different color from the Atari's palette of 15 hues (not counting black/greys/white) */
   if (dark) {
     OS.color4 = (level << 4) + 2;
   } else {
     OS.color4 = (level << 4) + 14;
   }
   OS.color1 = (level << 4) + 8;
+
+  /* Display the level number aka multiplier at the top left */
   sprintf(tmp_msg, "%dX", level);
   myprint(0, 0, tmp_msg);
 
-/*
-420 WORD_CNT=%0:COLOR %3+128:PLOT %0,%1:DRAWTO 19,%1
-*/
+  /* Reset word count */
   word_cnt = 0;
   memset(scr_mem + 20, 3 + 128, 20);
 
-/*
-430 PAUSE %1
-*/
   sleep(1);
 }
 
 
 /*
-. Calculate score
-1030 PROC CALC_SCORE
+  Calculate score for a word
+
+  @sideeffect updates global `cur_score`
+  @sideeffect updates global `bonus`
+  @sideeffect displays current word's score calculations
 */
 int cur_score = 0, bonus = 0; /* Used outside the function! */
 
 void calc_score(void) {
   int i, add;
 
-/*
-1040   CUR_SCORE=%0:BONUS=%0:POSITION %0,7:?#6;BLANK$
-*/
+  /* Zero calculations; blank out the message showing the old score */
   cur_score = 0;
   bonus = 0;
   bzero(scr_mem + 20 * 7, 20);
 
-/*
-1045   IF ENTRY_LEN>%0
-1050     FOR I=1 TO ENTRY_LEN
-*/
+  /* Tally */
   for (i = 0; i < entry_len; i++) {
-/*
-1060       ADD=LTR_SCORES(ASC(I$(I,I))-ASC("a"))*LEVEL
-*/
     add = ltr_scores[input[i] - 'a'] * level;
 
-/*
-1070       IF I<5:CUR_SCORE=CUR_SCORE+ADD:ELSE:BONUS=BONUS+ADD*%2:ENDIF
-*/
     if (i < 5) {
       cur_score += add;
     } else {
       bonus += (add * 2);
     }
-
-
-/*
-1080     NEXT I
-*/
   }
 
-/*
-1100     POSITION 8,7:?#6;"+";CUR_SCORE;
-1110     IF BONUS>0 THEN ?#6;" +";BONUS
-*/
+  /* Display the new score */
   if (cur_score > 0) {
     if (bonus > 0) {
       sprintf(tmp_msg, "+%d +%d", cur_score, bonus);
@@ -765,23 +754,21 @@ void calc_score(void) {
 
     myprint(10 - strlen(tmp_msg) / 2, 7, tmp_msg);
   }
-
-/*
-1120   ENDIF
-1130 ENDPROC
-*/
 }
 
 
 /*
-. Draw word (including fine-scrolling horizontally)
+  Draw the current word (including fine-scrolling horizontally
+  to ensure centering) entered by the user, found in global string
+  `input`.
+
+  @sideeffect displays the current word
+  @sideeffect affects hardware scroll register
+  @sideeffect updates global `cur_score` (via `calc_score()`)
+  @sideeffect updates global `bonus` (via `calc_score()`)
+  @sideeffect displays current word's score calculations (via `calc_score()`)
 */
 void draw_word(void) {
-  /*
-1010 PROC DRAW_WORD:POSITION %0,%3:?#6;BLANK$:POKE 54276,15-(ENTRY_LEN MOD %2)*%3
-1020 POSITION 10-(ENTRY_LEN/%2),%3:?#6;I$:EXEC CALC_SCORE:ENDPROC
-  */
-
   bzero(scr_mem + 3 * 20, 20);
   SCROLL(15 - (entry_len % 2) * 3);
   
@@ -791,153 +778,127 @@ void draw_word(void) {
 
 
 /*
-. Show score (& maintain high score)
-1000 PROC SHOW_SCORE
+  Show score (& maintain high score)
+
+  @sideeffect updates global `hiscore` as appropriate
+  @sideeffect updates global `got_high_score` as appropriate
+  @sideeffect displays scores
 */
 void show_score(void) {
-/*
-1001   IF SCORE>HISCORE THEN HISCORE=SCORE
-*/
+  /* Track high score */
   if (score > hiscore) {
     hiscore = score;
     got_high_score = TRUE;
   }
 
-/*
-1005   POSITION 5,%0:?#6;SCORE;"/";HISCORE
-1009 ENDPROC
-*/
-
+  /* Draw score & high score */
   sprintf(tmp_msg, "%ld/%ld", score, hiscore);
   myprint(5, 0, tmp_msg);
 }
 
 
-
 /*
-.     Pressed a key
+  Handle keypresses during the game.
+
+  * [Backspace] - Delete a letter from current word input
+  * [Sh]+[Backspace] or [Esc] - Delete entire current word input
+
+  @sideeffect plays sounds
+  @sideeffect alters horizontal scroll register
+  @sideeffect flashes colors 
+  @sideeffect updates global string `input`
+  @sideeffect updates global `entry_len`
+  @sideeffect updates global BOOl array `used`
+  @sideeffect updates global char array `src`
+  @sideeffect updates global char array `avail` 
+  @sideeffect updates global `word_cnt`
 */
 void pressed_a_key(void) {
   unsigned char ch, c, pick;
   int i, add;
 
-/*
-510   GET C
-*/
+  /* Grab a key, if any */
   ch = OS.ch;
   OS.ch = 255;
 
-/*
-520   IF C=126 AND ENTRY_LEN>%0
-.       Backspace
-*/
   if (ch == KEY_DELETE && entry_len > 0) {
-/*
-525     SOUND %0,145,10,8
-*/
+    /* [Backspace] - Delete a letter */
     SOUND(0, 145, 10, 8);
 
-/*
-530     USED(SRC(ENTRY_LEN))=%0:SRC(ENTRY_LEN)=-%1:I$(ENTRY_LEN,ENTRY_LEN)=" ":ENTRY_LEN=ENTRY_LEN-%1
-*/
     entry_len--;
 
     used[src[entry_len]] = FALSE;
     src[entry_len] = SRC_NOT_SET;
     input[entry_len] = '\0';
 
-/*
-540     EXEC DRAW_WORD:EXEC SHOW_AVAIL
-*/
     draw_word();
     show_avail();
-/*
-545     SOUND %0,%0,%0,%0
-550   ENDIF
-*/
+
     SOUND(0, 0, 0, 0);
   }
 
-/*
-560   IF C=155 AND ENTRY_LEN>=%3
-.       Return
-*/
   if (ch == KEY_RETURN && entry_len >= 3) {
-/*
-565     SOUND %0,%0,%0,15:PAUSE %1:SOUND %0,%0,%0,%0
-*/
+    /* [Return] - Submit the word */
     SOUND(0, 0, 0, 15);
     sleep(1);
     SOUND(0, 0, 0, 0);
 
-/*
-570     GOSUB 30
-580     IF FOUND
-*/
-
     if (binsearch(input)) {
+      /* Valid word! */
 
-/*
-581       ADD=CUR_SCORE+BONUS:SCORE=SCORE+ADD:EXEC SHOW_SCORE
-*/
+      /* Increment score */
       add = cur_score + bonus;
       score = score + add;
       show_score();
 
-/*
-582       IF ADD>BEST:BEST=ADD:BEST$=I$:ENDIF
-*/
+      /* Track our best word */
       if (add > best) {
         best = add;
         strcpy(best_word, input);
       }
 
-/*
-583       FOR I=%1 TO ENTRY_LEN:I$(I,I)=" ":AVAIL$(SRC(I),SRC(I))=" ":USED(SRC(I))=%0:SRC(I)=-%1:NEXT I
-*/
+      /* Blank the word input */
       input[0] = '\0';
       for (i = 0; i < entry_len; i++) {
         avail[src[i]] = ' ';
         used[src[i]] = FALSE;
         src[i] = SRC_NOT_SET;
       }
-
-/*
-584       ENTRY_LEN=%0:EXEC DEAL_LETTERS:EXEC DRAW_WORD
-*/
       entry_len = 0;
+
+      /* Get more letters & show them */
       deal_letters();
+
+      /* Erase word & score calculations */
       draw_word();
 
-/*
-585       WORD_CNT=WORD_CNT+%1:COLOR %3:PLOT %0,%1:DRAWTO 6*WORD_CNT,%1:FOR A=15 TO %0 STEP -%1:SOUND %0,61,10,A:NEXT A
-*/
+      /* Add to word count meter */
       word_cnt++;
       if (word_cnt < 3) {
         memset(scr_mem + 20, 3, word_cnt * 7);
       } else {
         memset(scr_mem + 20, 3, 20);
       }
+
+      /* Play a happy sound */
       for (i = 0; i < 16; i++) {
         SOUND(0, 61, 10, 15 - i);
         sleep(1);
       }
-
-/*
-586     ELSE
-*/
     } else {
-/*
-587       POKE 712,34:SOUND %0,220,12,10:FOR I=%0 TO 10:POKE 54276,RAND(%3)+12:PAUSE %1:NEXT I:POKE 54276,15-(ENTRY_LEN MOD %2)*%3:POKE 712,(LEVEL*16)+14:SOUND %0,%0,%0,%0
-*/
+      /* Invalid word! */
+
+      /* Red screen & obnoxious sound */
       OS.color4 = 34;
       SOUND(0, 220, 12, 10);
 
+      /* "Shake" the word they input */
       for (i = 0; i < 10; i++) {
         SCROLL((POKEY_READ.random % 3) + 12);
         sleep(1);
       }
 
+      /* Reset scroll & colors, and silence sounds */
       SCROLL(15 - (entry_len % 2) * 3);
       if (dark) {
         OS.color4 = (level << 4) + 2;
@@ -945,30 +906,17 @@ void pressed_a_key(void) {
         OS.color4 = (level << 4) + 14;
       }
       SOUND(0, 0, 0, 0);
-
-/*
-588     ENDIF
-589   ENDIF
-*/
     }
   }
 
-/*
-590   IF C>=ASC("A") AND C<=ASC("Z") AND ENTRY_LEN<WORDLEN
-.       A-Z
-*/
+  /* Anything else (only bother if there's room for more letters) */
   if (entry_len < wordlen) {
+    /* Use the OS's look-up table to see if it's an A-Z key */
     c = kbcode_to_atascii[ch];
 
     if (c >= 'a' && c <= 'z') {
-/*
-600     C=C!32:C$=CHR$(C)
-605     PICK=%0
-610     FOR I=%1 TO WORDLEN
-620       IF AVAIL$(I,I)=C$ AND USED(I)=%0 THEN PICK=I
-650     NEXT I
-*/
-
+      /* See if that letter is in the available letters list (currently dealt),
+         AND not already used in the current input word */
       pick = SRC_NOT_SET;
       for (i = 0; i < wordlen; i++) {
         if (avail[i] == c && used[i] == FALSE) {
@@ -976,67 +924,52 @@ void pressed_a_key(void) {
         }
       }
 
-/*
-660     IF PICK>%0
-*/
       if (pick != SRC_NOT_SET) {
-/*
-665       SOUND %0,61,10,8
-670       ENTRY_LEN=ENTRY_LEN+%1:I$(ENTRY_LEN,ENTRY_LEN)=C$:USED(PICK)=%1:SRC(ENTRY_LEN)=PICK
-*/
+        /* Valid letter! */
+
         SOUND(0, 61, 10, 8);
 
+        /* Add to the end of the input word */
         input[entry_len] = c;
         input[entry_len + 1] = '\0';
   
+        /* Denote that the letter was used; track the source of each letter
+           (map letters in the input to the list of available letters dealt to us) */
         used[pick] = TRUE;
         src[entry_len] = pick;
-  
+
+        /* Track input word length */
         entry_len++;
 
-/*
-675       SOUND %0,%0,%0,%0
-680       EXEC DRAW_WORD:EXEC SHOW_AVAIL
-*/
+        /* Update the word, and available letters, accordingly */
         draw_word();
         show_avail();
         SOUND(0, 0, 0, 0);
       } else {
-/*
-690     ELSE
-695       SOUND %0,255,10,8:PAUSE %2:SOUND %0,%0,%0,%0
-700     ENDIF
-*/
+        /* Invalid (or already used) letter! */
+
         SOUND(0, 255, 10, 8);
         sleep(2);
         SOUND(0, 0, 0, 0);
       }
     }
-
-/*
-710   ENDIF
-*/
   }
 
-/*
-711   IF (C=27 OR C=156) AND ENTRY_LEN>%0
-.       Delete word (Esc or Shift+Bksp)
-*/
   if ((ch == KEY_ESC || ch == (KEY_DELETE | KEY_SHIFT)) && entry_len > 0) {
-/*
-712     FOR I=%1 TO ENTRY_LEN:I$(I,I)=" ":USED(SRC(I))=%0:SRC(I)=-%1:NEXT I
-713     ENTRY_LEN=%0:EXEC DRAW_WORD:EXEC SHOW_AVAIL
-715   ENDIF
-720 ENDIF
-*/
+    /* [Esc] or [Shift] + [Backspace] (aka [Delete]): Delete entire word */
     SOUND(0, 200, 10, 8);
 
+    /* Blank the input */
     input[0] = '\0';
+    entry_len = 0;
+
+    /* Mark all available letters as 'unused', and un-map them */
     for (i = 0; i < wordlen; i++) {
       used[i] = FALSE;
       src[i] = SRC_NOT_SET;
     }
-    entry_len = 0;
+
+    /* Update the (now blank) word, and available letters, accordingly */
     draw_word();
     show_avail();
 
@@ -1045,31 +978,24 @@ void pressed_a_key(void) {
 }
 
 
+/* FIXME: Here be dragons that need fine-tuning -bjk 2021.07.16 */
+
+#define ANTI_SPEED 32 /* the higher the number, the slower things increase */
+
 /*
-. Show meters
+  Increase values of, and show animated flame meters, denoting
+  how 'mad' each letter is
+
+  @sideeffect updates elements of global `mad[]` array, as appropriate
+  @sideeffect displays meters
 */
 void show_meters(void) {
   int x, i, s, m;
 
-/*
-800 X=10-((WORDLEN/%2)*%2)
-*/
-
   x = 10 - half_wordlen * 2;
 
-/*
-810 FOR I=%1 TO WORDLEN
-*/
   for (i = 0; i < wordlen; i++) {
-/*
-820   S=LTR_SCORES(ASC(AVAIL$(I,I))-ASC("a"))
-*/
     s = ltr_scores[avail[i] - 'a'];
-/*    
-830   MAD(I)=MAD(I)+((11-S)/(200-(LEVEL*4)))
-*/
-
-#define ANTI_SPEED 32 /* the higher the number, the slower things increase */
 
     if (pal_speed) {
       /* PAL; clicks less often, so add madness more quickly */
@@ -1079,10 +1005,6 @@ void show_meters(void) {
       mad[i] += (((11 - s) << 8) * level) / (ANTI_SPEED * 60);
     }
 
-/*    
-840   POSITION X,9:M=MAD(I)+%1:IF M>9:M=9:GAMEOVER=1:ENDIF
-850   ?#6;MAD$(M,M):X=X+%2
-*/
     m = mad[i] >> 8;
     if (m > 8) {
       m = 8;
@@ -1092,36 +1014,36 @@ void show_meters(void) {
     scr_mem[9 * 20 + x] = get_mad_sym(m, i);
 
     x += 2;
-/*
-860 NEXT I
-*/
   }
 }
 
 /*
-. Game loop!
+  Game loop!
+
+  Play the game; accept input, increment letter meters.
+
+  @sideeffects sets global BOOL `gameover` if the game has ended
+  @sideeffects <many others not listed here>
 */
 void game_loop(void) {
   BOOL next_level;
 
   next_level = FALSE;
   do {
-  /*
-  500 IF PEEK(764)<255
-  */
+    /* Handle keypresses */
     if (OS.ch != 255) {
       pressed_a_key();
     }
+
+    /* Every few screen refreshes, update meters
+       (if any meter has filled completely, the game ends
+       and we'll drop out of this loop and return to caller) */
     if (OS.rtclok[2] & 2) {
       show_meters();
     }
 
-/*
-. End-of-game or end-of-level checks
-980 IF GAMEOVER THEN 2000
-990 IF WORD_CNT=%3 THEN LEVEL=LEVEL+%1:GOTO 400
-999 GOTO 500
-*/
+    /* If word count has hit three, progress to the next level
+       (we'll drop out of this loop and return to caller) */
     if (word_cnt == 3) {
       level++;
       next_level = TRUE;
@@ -1131,71 +1053,73 @@ void game_loop(void) {
 
 
 /*
-. Game over; show best word, save high score
+. Game over sequence -- Show best word, save high score (if needed)
 */
 void game_over(void) {
   int i;
 
-/*
-2000 POSITION %0,%3:?#6;BLANK$:POKE 54276,15
-2010 POSITION %0,%3:?#6;"`best word:`";BEST$
-*/
+  /* Reset scroll register */
   SCROLL(15);
 
+  /* Show the best word they got during this game... */
   bzero(scr_mem + 3 * 20, 20);
   if (best_word[0] != '\0') {
     sprintf(tmp_msg, "best word: %s", best_word);
   } else {
+    /* Player was, like, just sitting there...!? */
     sprintf(tmp_msg, "try that again");
   }
   myprint(10 - (strlen(tmp_msg) / 2), 3, tmp_msg);
 
-/*
-2020 POSITION %0,5:?#6;BLANK$:POSITION %0,5:?#6;BEST
-*/
+  /* ...and the best word's score */
   bzero(scr_mem + 5 * 20, 20);
   if (best > 0) {
     sprintf(tmp_msg, "%d points", best);
     myprint(10 - (strlen(tmp_msg) / 2), 5, tmp_msg);
   }
 
+  /* Congratulate them if they got the high score;
+     save the new high score to disk */
   if (got_high_score) {
-    save_high_score();
     myprint(3, 7, "new high score");
+    save_high_score();
   }
 
-/*
-2040 PAUSE %1:POKE 764,255
-2050 POSITION %0,7:?#6;BLANK$:POSITION %3,7:?#6;"PRESS A KEY...";
-2060 IF PEEK(764)=255 AND PEEK(53279)=7 THEN 2060
-2070 POKE 764,255:GOTO 300
-*/
-
+  /* Game-over sound effect */
   for (i = 0; i < 254; i += 16) {
     SOUND(0, i, 10, 4);
     sleep(1);
   }
   SOUND(0, 0, 0, 0);
 
+  /* Prompt them to press [Esc] to continue
+     (any console key works, too) */
   myprint(2, 15, "PRESS ESCAPE...");
 
   OS.ch = 255;
   while (OS.ch != KEY_ESC && GTIA_READ.consol == 7) { }
+
+  /* Stay here until console key released, if it was pressed! */
   do { } while (GTIA_READ.consol != 7);
   OS.ch = 255;
 }
 
 
-
+/* Main! */
 void main(void) {
   int i;
 
+  /* Point to the XL OS's keyboard code -> ATASCII look-up table */
   kbcode_to_atascii = (char *) OS.keydef;
+
+  /* Init sound registers */
   SOUND_INIT();
   
+  /* Set up display & show bare-bones title */
   setup_screen();
   title();
 
+  /* Fade-in effect */
   for (i = 0; i < 15; i++) {
     if (!dark) {
       OS.color4 = 16 + i; // => 30
@@ -1209,14 +1133,13 @@ void main(void) {
     while (ANTIC.vcount < 124);
   }
 
+  /* Load dictionary & high score */
   load_dict();
   load_high_score();
 
+  /* Main loop: */
   do {
-/*
-195 POKE 756,CH/256:POSITION %3,9:? #6;"press start..."
-*/
-
+    /* Prompt user to press [Start] to begin */
     myprint(4, 9, "press START");
 
 /* FIXME */
@@ -1224,9 +1147,8 @@ void main(void) {
 196 DT=INSTR(FN$,"."):POSITION %0,12:? #6;"option - change lang";"current=";FN$(%3,DT-%1)
 */
 
-/*
-197 POSITION %0,15:? #6;"hiscore=";HISCORE
-*/
+    /* Show current high score
+       (might update within this loop!) */
     sprintf(tmp_msg, "highscore=%ld", hiscore);
     myprint(10 - strlen(tmp_msg) / 2, 15, tmp_msg);
 
@@ -1235,28 +1157,38 @@ void main(void) {
 */
 /* FIXME */
 
-/*
-200 IF PEEK(53279)<>6 THEN 199
-*/
-
     do {
 /* FIXME: Do something interesting */
     } while(GTIA_READ.consol != 6);
-  
+
+
+    /* Start a new game */ 
     game_start();
-  
+
+    /* Game loop: */  
     do {
+      /* Start a new level */
       level_start();
+
+      /* Play the level */
       game_loop();
     } while (!gameover);
 
+    /* Show game over sequence */
     game_over();
+
+    /* Show title screen again.
+       (Yes, this is our second call to this within main(), but after the
+       first one, we load the dictionary from disk, which is not something
+       we need to do more than once) */
     title();
   } while (1);
 
+  /* Never reach here, technically */
   ANTIC.nmien = NMIEN_VBI;
 }
 
+/* FIXME: Port this to C */
 /*
 . Choose a dictionary!
 30000 GRAPHICS 18:DIM FNS$(160):CLOSE #%1:DICTS=%0:? #6;"`select a language`"
@@ -1271,3 +1203,4 @@ void main(void) {
 30080 TRAP 30080:POKE 731,%0:GET C:I=C-65:FN$="D:":FN$(%3)=FNS$(I*8+%1,I*8+8):SP=INSTR(FN$," "):FN$(SP)=".DIC"
 30090 OPEN #%1,8,%0,"D:DEFAULT.DAT":?#%1;FN$:CLOSE #%1:RUN
 */
+
