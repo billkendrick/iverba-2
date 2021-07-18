@@ -579,14 +579,14 @@ void save_high_score(void) {
 
     fclose(fi);
 
+    enable_dli();
     myprint(2, 10, "high score saved");
     iv2_sleep(50);
   } else {
+    enable_dli();
     myprint(2, 10, "cannot save high");
     iv2_sleep(50);
   }
-
-  enable_dli();
 }
 
 
