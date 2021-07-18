@@ -8,11 +8,11 @@
     August - September 2017
 
   * cc65 port:
-    June 30, 2021 - July 16, 2021
+    June 30, 2021 - July 17, 2021
 */
 
 #define VERSION "PRE-RELEASE 3"
-#define VERSION_DATE "2021-07-16"
+#define VERSION_DATE "2021-07-17"
 
 #include <stdio.h>
 #include <string.h>
@@ -20,6 +20,7 @@
 #include <atari.h>
 #include <peekpoke.h>
 #include "sound.h"
+#include "cio.h"
 
 #pragma data-name (push,"FONT")
 #include "../font/iverba2_fnt.h"
@@ -57,7 +58,7 @@ BOOL dark = FALSE; /* FIXME: Allow changing & save setting */
 
   @param int i -- how long to sleep (screen refreshes)
 */
-void sleep(int i) {
+void iv2_sleep(int i) {
   unsigned char target;
 
   target = OS.rtclok[2] + i;
@@ -415,22 +416,52 @@ void cache_scores(void) {
   @sideeffect displays how many words, and word size, on the screen
 */
 void load_dict(void) {
-  FILE * fi;
-  int alloc, i, dest, size, tot;
+  unsigned char res;
+  int alloc, i, size, tot;
+  unsigned char * dest;
+  unsigned char lo, hi;
 
 /* FIXME: Allow dictionary selection */
 /*
 130 TRAP 30000:DIM FN$(16):OPEN #%1,4,%0,"D:DEFAULT.DAT":INPUT #%1,FN$:CLOSE #%1
 135 POKE 731,255:OPEN #%1,4,%0,FN$
 */
-  fi = fopen("EN_US.DIC", "rb");
-  /* FIXME: Check for error */
+  for (i = 1; i < 8; i++) {
+    OS.iocb[i].command = IOCB_CLOSE;
+    ciov(i);
+  }
+
+  OS.iocb[1].command = IOCB_OPEN;
+  OS.iocb[1].buffer = "D:EN_US.DIC";
+  OS.iocb[1].buflen = strlen("D:EN_US.DIC");
+  OS.iocb[1].aux1 = 0x04; /* READ */
+  res = ciov(1);
+
+  /* FIXME: Check for error (1 in Y register = success) */
+  if (res != 1) {
+    myprint(2, 9, "can't open dict");
+    do { } while(1);
+  }
 
   /* Grab details of the dictionary: how many words, how big are words? */
-  num_words = fgetc(fi) + fgetc(fi) * 256;
+  OS.iocb[1].command = IOCB_GETCHR;
+  OS.iocb[1].buffer = &lo;
+  OS.iocb[1].buflen = 1;
+  ciov(1);
+
+  OS.iocb[1].command = IOCB_GETCHR;
+  OS.iocb[1].buffer = &hi;
+  OS.iocb[1].buflen = 1;
+  ciov(1);
+
+  num_words = lo + hi * 256;
   dict_ptr_mid = num_words / 2;
 
-  wordlen = fgetc(fi);
+  OS.iocb[1].command = IOCB_GETCHR;
+  OS.iocb[1].buffer = &wordlen;
+  OS.iocb[1].buflen = 1;
+  ciov(1);
+
   half_wordlen = wordlen / 2;
 
   /* Allocate space for things based on the word length dictated by the
@@ -465,11 +496,19 @@ void load_dict(void) {
   words = (char *) malloc(alloc * sizeof(char));
 
   /* Grab how many letters used in the dictionary */
-  num_letters = fgetc(fi);
+  OS.iocb[1].command = IOCB_GETCHR;
+  OS.iocb[1].buffer = &num_letters;
+  OS.iocb[1].buflen = 1;
+  ciov(1);
 
   /* Read the letters and their scores; make a reverse-look-up */
   lookups = (char *) malloc((num_letters * 2) * sizeof(char));
-  fread(lookups, sizeof(char), num_letters * 2, fi);
+
+  OS.iocb[1].command = IOCB_GETCHR;
+  OS.iocb[1].buffer = lookups;
+  OS.iocb[1].buflen = num_letters * 2;
+  ciov(1);
+
   cache_scores();
 
   /* Load things (in 8 chunks, so we can show meters) */
@@ -481,7 +520,12 @@ void load_dict(void) {
   for (i = 0; i < 8; i++) {
     scr_mem[9 * 20 + 5] = 1 + (i * 3);
     scr_mem[9 * 20 + 13] = 1 + (i * 3) + 1;
-    fread(dest, sizeof(char), size, fi);
+
+    OS.iocb[1].command = IOCB_GETCHR;
+    OS.iocb[1].buffer = dest;
+    OS.iocb[1].buflen = size;
+    ciov(1);
+
     dest = dest + size;
     tot = tot + size;
     if (tot + size > alloc) {
@@ -489,7 +533,8 @@ void load_dict(void) {
     }
   }
 
-  fclose(fi);
+  OS.iocb[1].command = IOCB_CLOSE;
+  ciov(1);
 }
 
 /*
@@ -498,20 +543,25 @@ void load_dict(void) {
   @sideeffect fills global long `hiscore`, or shows a "no high score file" message momentarily
 */
 void load_high_score(void) {
-  unsigned char * ptr;
-  FILE * fi;
+  unsigned char res;
 
-  fi = fopen("HISCORE.DAT", "rb");
-  if (fi != NULL) {
-    ptr = (unsigned char *) &hiscore;
-    ptr[0] = fgetc(fi);
-    ptr[1] = fgetc(fi);
-    ptr[2] = fgetc(fi);
+  OS.iocb[1].command = IOCB_OPEN;
+  OS.iocb[1].buffer = "D:HISCORE.DAT";
+  OS.iocb[1].buflen = strlen("D:HISCORE.DAT");
+  OS.iocb[1].aux1 = 0x04; /* READ */
+  res = ciov(1);
 
-    fclose(fi);
+  if (res == 1) {
+    OS.iocb[1].command = IOCB_GETCHR;
+    OS.iocb[1].buffer = (unsigned char *) &hiscore;
+    OS.iocb[1].buflen = 3;
+    ciov(1);
+
+    OS.iocb[1].command = IOCB_CLOSE;
+    ciov(1);
   } else {
     myprint(1, 9, "no high score file");
-    sleep(50);
+    iv2_sleep(50);
     bzero(scr_mem + 9 * 20, 20);
   }
 }
@@ -525,6 +575,7 @@ void save_high_score(void) {
   unsigned char * ptr;
   FILE * fi;
 
+  /* FIXME: Replace with CIO calls? */
   fi = fopen("HISCORE.DAT", "wb");
   if (fi != NULL) {
     ptr = (unsigned char *) &hiscore;
@@ -535,10 +586,10 @@ void save_high_score(void) {
     fclose(fi);
 
     myprint(2, 10, "high score saved");
-    sleep(50);
+    iv2_sleep(50);
   } else {
     myprint(2, 10, "cannot save high");
-    sleep(50);
+    iv2_sleep(50);
   }
 }
 
@@ -712,7 +763,7 @@ void level_start(void) {
   word_cnt = 0;
   memset(scr_mem + 20, 3 + 128, 20);
 
-  sleep(1);
+  iv2_sleep(1);
 }
 
 
@@ -840,7 +891,7 @@ void pressed_a_key(void) {
   if (ch == KEY_RETURN && entry_len >= 3) {
     /* [Return] - Submit the word */
     SOUND(0, 0, 0, 15);
-    sleep(1);
+    iv2_sleep(1);
     SOUND(0, 0, 0, 0);
 
     if (binsearch(input)) {
@@ -883,7 +934,7 @@ void pressed_a_key(void) {
       /* Play a happy sound */
       for (i = 0; i < 16; i++) {
         SOUND(0, 61, 10, 15 - i);
-        sleep(1);
+        iv2_sleep(1);
       }
     } else {
       /* Invalid word! */
@@ -895,7 +946,7 @@ void pressed_a_key(void) {
       /* "Shake" the word they input */
       for (i = 0; i < 10; i++) {
         SCROLL((POKEY_READ.random % 3) + 12);
-        sleep(1);
+        iv2_sleep(1);
       }
 
       /* Reset scroll & colors, and silence sounds */
@@ -949,7 +1000,7 @@ void pressed_a_key(void) {
         /* Invalid (or already used) letter! */
 
         SOUND(0, 255, 10, 8);
-        sleep(2);
+        iv2_sleep(2);
         SOUND(0, 0, 0, 0);
       }
     }
@@ -1088,7 +1139,7 @@ void game_over(void) {
   /* Game-over sound effect */
   for (i = 0; i < 254; i += 16) {
     SOUND(0, i, 10, 4);
-    sleep(1);
+    iv2_sleep(1);
   }
   SOUND(0, 0, 0, 0);
 
