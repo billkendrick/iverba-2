@@ -8,11 +8,11 @@
     August - September 2017
 
   * cc65 port:
-    June 30, 2021 - July 17, 2021
+    June 30, 2021 - July 18, 2021
 */
 
 #define VERSION "PRE-RELEASE 3"
-#define VERSION_DATE "2021-07-17"
+#define VERSION_DATE "2021-07-18"
 
 #include <stdio.h>
 #include <string.h>
@@ -214,8 +214,7 @@ unsigned char binsearch(char * str) {
   Display List Interrupt
 */
 #pragma optimize (push, off)
-void dli(void)
-{
+void dli(void) {
   asm("pha");
   asm("txa");
   asm("pha");
@@ -260,6 +259,19 @@ void dli(void)
   asm("rti");
 }
 #pragma optimize (pop);
+
+/* Enable DLI */
+void enable_dli(void) {
+  ANTIC.nmien = NMIEN_VBI;
+  while (ANTIC.vcount < 124);
+  OS.vdslst = (void *) dli;
+  ANTIC.nmien = NMIEN_VBI | NMIEN_DLI;
+}
+
+/* Disable DLI */
+void disable_dli(void) {
+  ANTIC.nmien = NMIEN_VBI;
+}
 
 
 /*
@@ -361,12 +373,6 @@ void setup_screen(void) {
 
   /* Default scroll setting */
   SCROLL(15);
-
-  /* Enable DLI */
-  ANTIC.nmien = NMIEN_VBI;
-  while (ANTIC.vcount < 124);
-  OS.vdslst = (void *) dli;
-  ANTIC.nmien = NMIEN_VBI | NMIEN_DLI;
 }
 
 
@@ -415,6 +421,8 @@ void cache_scores(void) {
     ltr_scores[l] = lookups[(j * 2) + 1];
   }
 }
+
+char * spinner = "I/-\\";
 
 /*
   Load dictionary from disk
@@ -514,8 +522,8 @@ void load_dict(void) {
   size = alloc / 8;
   tot = 0;
   for (i = 0; i < 8; i++) {
-    scr_mem[9 * 20 + 5] = 1 + (i * 3);
-    scr_mem[9 * 20 + 13] = 1 + (i * 3) + 1;
+    scr_mem[9 * 20 + 5] = spinner[i % 4] - 32;
+    scr_mem[9 * 20 + 13] = spinner[i % 4] - 32;
 
     disk_read(dest, size);
 
@@ -559,6 +567,8 @@ void save_high_score(void) {
   unsigned char * ptr;
   FILE * fi;
 
+  disable_dli();
+
   /* FIXME: Replace with CIO calls? */
   fi = fopen("HISCORE.DAT", "wb");
   if (fi != NULL) {
@@ -575,6 +585,8 @@ void save_high_score(void) {
     myprint(2, 10, "cannot save high");
     iv2_sleep(50);
   }
+
+  enable_dli();
 }
 
 
@@ -1177,6 +1189,8 @@ void main(void) {
   show_high_score();
   load_dict();
 
+  enable_dli();
+
   /* Main loop: */
   do {
     /* Prompt user to press [Start] to begin */
@@ -1222,9 +1236,6 @@ void main(void) {
        we need to do more than once) */
     title();
   } while (1);
-
-  /* Never reach here, technically */
-  ANTIC.nmien = NMIEN_VBI;
 }
 
 /* FIXME: Port this to C */
