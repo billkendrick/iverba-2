@@ -53,6 +53,28 @@ BOOL pal_speed;
 BOOL dark = FALSE; /* FIXME: Allow changing & save setting */
 
 
+unsigned char disk_close(void) {
+  OS.iocb[1].command = IOCB_CLOSE;
+  return ciov(1);
+}
+
+unsigned char disk_open(char * fname, unsigned char mode) {
+  disk_close();
+  OS.iocb[1].command = IOCB_OPEN;
+  OS.iocb[1].buffer = fname;
+  OS.iocb[1].buflen = strlen(fname);
+  OS.iocb[1].aux1 = mode;
+  return ciov(1);
+}
+
+unsigned char disk_read(unsigned char * ptr, unsigned int len) {
+  OS.iocb[1].command = IOCB_GETCHR;
+  OS.iocb[1].buffer = ptr;
+  OS.iocb[1].buflen = len;
+  return ciov(1);
+}
+
+
 /*
   Sleep a moment.
 
@@ -419,49 +441,30 @@ void load_dict(void) {
   unsigned char res;
   int alloc, i, size, tot;
   unsigned char * dest;
-  unsigned char lo, hi;
 
 /* FIXME: Allow dictionary selection */
 /*
 130 TRAP 30000:DIM FN$(16):OPEN #%1,4,%0,"D:DEFAULT.DAT":INPUT #%1,FN$:CLOSE #%1
 135 POKE 731,255:OPEN #%1,4,%0,FN$
 */
-  for (i = 1; i < 8; i++) {
-    OS.iocb[i].command = IOCB_CLOSE;
-    ciov(i);
-  }
 
-  OS.iocb[1].command = IOCB_OPEN;
-  OS.iocb[1].buffer = "D:EN_US.DIC";
-  OS.iocb[1].buflen = strlen("D:EN_US.DIC");
-  OS.iocb[1].aux1 = 0x04; /* READ */
-  res = ciov(1);
+  res = disk_open("D:EN_US.DIC", IOCB_READ);
 
-  /* FIXME: Check for error (1 in Y register = success) */
   if (res != 1) {
+    sprintf(tmp_msg, "error %d", res);
+    myprint(10 - strlen(tmp_msg) / 2, 8, tmp_msg);
     myprint(2, 9, "can't open dict");
+    OS.color4 = 64;
     do { } while(1);
   }
 
+  myprint(6, 9, "preping");
+
   /* Grab details of the dictionary: how many words, how big are words? */
-  OS.iocb[1].command = IOCB_GETCHR;
-  OS.iocb[1].buffer = &lo;
-  OS.iocb[1].buflen = 1;
-  ciov(1);
-
-  OS.iocb[1].command = IOCB_GETCHR;
-  OS.iocb[1].buffer = &hi;
-  OS.iocb[1].buflen = 1;
-  ciov(1);
-
-  num_words = lo + hi * 256;
+  disk_read((unsigned char *) &num_words, 2);
   dict_ptr_mid = num_words / 2;
 
-  OS.iocb[1].command = IOCB_GETCHR;
-  OS.iocb[1].buffer = &wordlen;
-  OS.iocb[1].buflen = 1;
-  ciov(1);
-
+  disk_read((unsigned char *) &wordlen, 1);
   half_wordlen = wordlen / 2;
 
   /* Allocate space for things based on the word length dictated by the
@@ -496,19 +499,12 @@ void load_dict(void) {
   words = (char *) malloc(alloc * sizeof(char));
 
   /* Grab how many letters used in the dictionary */
-  OS.iocb[1].command = IOCB_GETCHR;
-  OS.iocb[1].buffer = &num_letters;
-  OS.iocb[1].buflen = 1;
-  ciov(1);
+  disk_read((unsigned char *) &num_letters, 1);
 
   /* Read the letters and their scores; make a reverse-look-up */
   lookups = (char *) malloc((num_letters * 2) * sizeof(char));
 
-  OS.iocb[1].command = IOCB_GETCHR;
-  OS.iocb[1].buffer = lookups;
-  OS.iocb[1].buflen = num_letters * 2;
-  ciov(1);
-
+  disk_read((unsigned char *) lookups, num_letters * 2);
   cache_scores();
 
   /* Load things (in 8 chunks, so we can show meters) */
@@ -521,10 +517,7 @@ void load_dict(void) {
     scr_mem[9 * 20 + 5] = 1 + (i * 3);
     scr_mem[9 * 20 + 13] = 1 + (i * 3) + 1;
 
-    OS.iocb[1].command = IOCB_GETCHR;
-    OS.iocb[1].buffer = dest;
-    OS.iocb[1].buflen = size;
-    ciov(1);
+    disk_read(dest, size);
 
     dest = dest + size;
     tot = tot + size;
@@ -533,8 +526,7 @@ void load_dict(void) {
     }
   }
 
-  OS.iocb[1].command = IOCB_CLOSE;
-  ciov(1);
+  disk_close();
 }
 
 /*
@@ -545,25 +537,17 @@ void load_dict(void) {
 void load_high_score(void) {
   unsigned char res;
 
-  OS.iocb[1].command = IOCB_OPEN;
-  OS.iocb[1].buffer = "D:HISCORE.DAT";
-  OS.iocb[1].buflen = strlen("D:HISCORE.DAT");
-  OS.iocb[1].aux1 = 0x04; /* READ */
-  res = ciov(1);
+  res = disk_open("D:HISCORE.DAT", IOCB_READ);
 
   if (res == 1) {
-    OS.iocb[1].command = IOCB_GETCHR;
-    OS.iocb[1].buffer = (unsigned char *) &hiscore;
-    OS.iocb[1].buflen = 3;
-    ciov(1);
-
-    OS.iocb[1].command = IOCB_CLOSE;
-    ciov(1);
+    disk_read((unsigned char *) &hiscore, 3);
   } else {
     myprint(1, 9, "no high score file");
     iv2_sleep(50);
     bzero(scr_mem + 9 * 20, 20);
   }
+
+  disk_close();
 }
 
 /*
@@ -1155,6 +1139,10 @@ void game_over(void) {
   OS.ch = 255;
 }
 
+void show_high_score(void) {
+  sprintf(tmp_msg, "highscore=%ld", hiscore);
+  myprint(10 - strlen(tmp_msg) / 2, 15, tmp_msg);
+}
 
 /* Main! */
 void main(void) {
@@ -1185,8 +1173,9 @@ void main(void) {
   }
 
   /* Load dictionary & high score */
-  load_dict();
   load_high_score();
+  show_high_score();
+  load_dict();
 
   /* Main loop: */
   do {
@@ -1200,8 +1189,7 @@ void main(void) {
 
     /* Show current high score
        (might update within this loop!) */
-    sprintf(tmp_msg, "highscore=%ld", hiscore);
-    myprint(10 - strlen(tmp_msg) / 2, 15, tmp_msg);
+    show_high_score();
 
 /*
 199 IF PEEK(53279)=%3 THEN 30000
