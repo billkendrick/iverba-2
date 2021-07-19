@@ -8,11 +8,11 @@
     August - September 2017
 
   * cc65 port:
-    June 30, 2021 - July 18, 2021
+    June 30, 2021 - July 19, 2021
 */
 
 #define VERSION "PRE-RELEASE 4"
-#define VERSION_DATE "2021-07-18"
+#define VERSION_DATE "2021-07-19"
 
 #include <stdio.h>
 #include <string.h>
@@ -53,11 +53,23 @@ BOOL pal_speed;
 BOOL dark = FALSE; /* FIXME: Allow changing & save setting */
 
 
+/*
+  CIO close file
+
+  @return byte error code
+*/
 unsigned char disk_close(void) {
   OS.iocb[1].command = IOCB_CLOSE;
   return ciov(1);
 }
 
+/*
+  CIO open file
+
+  @param string filename
+  @param byte mode (4=read, 8=write)
+  @return byte error code
+*/
 unsigned char disk_open(char * fname, unsigned char mode) {
   disk_close();
   OS.iocb[1].command = IOCB_OPEN;
@@ -67,6 +79,13 @@ unsigned char disk_open(char * fname, unsigned char mode) {
   return ciov(1);
 }
 
+/*
+  CIO read data
+
+  @param pointer ptr
+  @param unsigned int len
+  @return byte error code
+*/
 unsigned char disk_read(unsigned char * ptr, unsigned int len) {
   OS.iocb[1].command = IOCB_GETCHR;
   OS.iocb[1].buffer = ptr;
@@ -138,61 +157,70 @@ void myprint(unsigned char x, unsigned char y, char * str) {
   Source: https://atariage.com/forums/topic/216807-complete-pokey-note-table-for-all-distortion-settings/
 */
 unsigned char note_table[] = {
-  /* C */  243,
-  /* C# */ 230,
-  /* D */  217,
-  /* D# */ 204,
-  /* E */  193,
-  /* F */  182,
-  /* F# */ 172,
-  /* G */  162,
-  /* G# */ 153,
-  /* A */  144,
-  /* A# */ 136,
-  /* B */  128,
-  /* C */  121,
-  /* C# */ 114,
-  /* D */  108,
-  /* D# */ 102,
-  /* E */   96,
-  /* F */   91,
-  /* F# */  85,
-  /* G */   81,
-  /* G# */  76,
-  /* A */   72,
-  /* A# */  68,
-  /* B */   64,
-  /* C */   60,
-  /* C# */  57,
-  /* D */   53,
-  /* D# */  50,
-  /* E */   47,
-  /* F */   45,
-  /* F# */  42,
-  /* G */   40,
-  /* G# */  37,
-  /* A */   35,
-  /* A# */  33,
-  /* B */   31,
-  /* C */   30,
-  /* C# */  28,
-  /* D */   26,
-  /* D# */  25,
-  /* E */   23,
-  /* F */   22,
-  /* F# */  21,
-  /* G */   19,
-  /* G# */  18,
-  /* A */   17,
-  /* A# */  16
+  /*  0 C */  243, /* first word */
+  /*  1 C# */ 230,
+  /*  2 D */  217,
+  /*  3 D# */ 204,
+  /*  4 E */  193,
+  /*  5 F */  182,
+  /*  6 F# */ 172,
+  /*  7 G */  162,
+  /*  8 G# */ 153,
+  /*  9 A */  144,
+  /* 10 A# */ 136,
+  /* 11 B */  128,
+  /* 12 C */  121, /* second word */
+  /* 13 C# */ 114,
+  /* 14 D */  108,
+  /* 15 D# */ 102,
+  /* 16 E */   96,
+  /* 17 F */   91,
+  /* 18 F# */  85,
+  /* 19 G */   81,
+  /* 20 G# */  76,
+  /* 21 A */   72,
+  /* 22 A# */  68,
+  /* 23 B */   64,
+  /* 24 C */   60, /* third word */
+  /* 25 C# */  57,
+  /* 26 D */   53,
+  /* 27 D# */  50,
+  /* 28 E */   47,
+  /* 29 F */   45,
+  /* 30 F# */  42,
+  /* 31 G */   40,
+  /* 32 G# */  37,
+  /* 33 A */   35,
+  /* 34 A# */  33,
+  /* 35 B */   31,
+  /* 36 C */   30, /* success; next level */
+  /* 37 C# */  28,
+  /* 38 D */   26,
+  /* 39 D# */  25,
+  /* 40 E */   23,
+  /* 41 F */   22,
+  /* 42 F# */  21,
+  /* 43 G */   19,
+  /* 44 G# */  18,
+  /* 45 A */   17,
+  /* 46 A# */  16
 };
 
+unsigned char note_starts[] = { 0, 9, 18, 27 };
+
+
+/* Volume levels (listed backwards from end to beginning of sound) */
 unsigned char vol[] = {
-   8, 15, 14, 13,
-  13, 12,  8, 10,
-   8,  6,  4,  2
+   0,
+   2,  4,  6,  8,
+  10,  8, 12, 13,
+  12, 14, 15,  8
 };
 
+
+unsigned char note1_ptr = 0;
+unsigned char sound_timer = 0;
+unsigned char note1, note2, note3;
 
 /*
   Play a chord
@@ -200,14 +228,9 @@ unsigned char vol[] = {
   FIXME: Sound playing should be moved to a VBI routine
 
   @param BOOL major - major (vs minor) chord?
-  @param BOOL separated - play one note at a time, or all three at once?
   @sideeffect plays a sound
 */
-void play_chord(BOOL major, BOOL separated) {
-  unsigned char note1_ptr, note1, note2, note3, tmp;
-  int i;
-
-  note1_ptr = POKEY_READ.random % (sizeof(note_table) - 8);
+void play_chord(BOOL major) {
   note1 = note_table[note1_ptr + 0];
   if (major) {
     /* 1---2--3 e.g. E,G#,B */
@@ -218,41 +241,7 @@ void play_chord(BOOL major, BOOL separated) {
   }
   note3 = note_table[note1_ptr + 7];
 
-  if (separated) {
-    if (!major) {
-      tmp = note1;
-      note1 = note3;
-      note3 = tmp;
-    }
-
-    for (i = 0; i < sizeof(vol); i+=2) {
-      SOUND(0, note1, 10, vol[i]);
-      iv2_sleep(1);
-    }
-
-    for (i = 0; i < sizeof(vol); i+=2) {
-      SOUND(0, note2, 10, vol[i]);
-      iv2_sleep(1);
-    }
-
-    for (i = 0; i < sizeof(vol); i+=2) {
-      SOUND(0, note3, 10, vol[i]);
-      iv2_sleep(1);
-    }
-
-    SOUND(0, 0, 0, 0);
-  } else {
-    for (i = 0; i < sizeof(vol); i++) {
-      SOUND(0, note1, 10, vol[i]);
-      SOUND(1, note2, 10, vol[i] >> 1);
-      SOUND(2, note3, 10, vol[i]);
-      iv2_sleep(1);
-    }
-
-    SOUND(0, 0, 0, 0);
-    SOUND(1, 0, 0, 0);
-    SOUND(2, 0, 0, 0);
-  }
+  sound_timer = sizeof(vol) << 1;
 }
 
 
@@ -334,10 +323,56 @@ unsigned char binsearch(char * str) {
   return found;
 }
 
-/*
-  Display List Interrupt
-*/
+
 #pragma optimize (push, off)
+
+/*
+  Vertical Blank Interrupt -- play musical sounds
+*/
+
+void * OLDVEC;
+
+void vbi(void) {
+  /* if sound_timer > 0, then continue; otherwise we're all done */
+  asm("ldx %v", sound_timer);
+  asm("beq %g", __vbi_done);
+
+  /* sound_timer-- */
+  asm("dex");
+  asm("stx %v", sound_timer);
+
+  /* X = sound_timer >> 1 */
+  asm("txa");
+  asm("lsr");
+  asm("tax");
+
+  /* SOUND 0,note1,???,??? */
+  asm("lda %v", note1);
+  asm("sta %w", (unsigned)&POKEY_WRITE.audf1);
+
+  /* SOUND 1,note1,???,??? */
+  asm("lda %v", note2);
+  asm("sta %w", (unsigned)&POKEY_WRITE.audf2);
+
+  /* SOUND 2,note1,???,??? */
+  asm("lda %v", note3);
+  asm("sta %w", (unsigned)&POKEY_WRITE.audf3);
+
+  /* A = vol[X] */
+  asm("lda %v,x", vol);
+  asm("adc #$a0"); /* SOUND [0-3],???,10,vol */
+
+  asm("sta %w", (unsigned)&POKEY_WRITE.audc1);
+  asm("sta %w", (unsigned)&POKEY_WRITE.audc2);
+  asm("sta %w", (unsigned)&POKEY_WRITE.audc3);
+
+__vbi_done:
+  asm("jmp (%v)", OLDVEC);
+}
+
+/*
+  Display List Interrupt -- toggle font for a line
+*/
 void dli(void) {
   asm("pha");
   asm("txa");
@@ -382,11 +417,26 @@ void dli(void) {
 
   asm("rti");
 }
+
 #pragma optimize (pop);
+
+
+/* Enable VBI */
+void enable_vbi(void) {
+  OLDVEC = OS.vvblkd;
+
+  OS.critic = 1;
+  OS.vvblkd = (void *) vbi;
+  OS.critic = 0;
+
+  ANTIC.nmien = NMIEN_VBI;
+}
+
 
 /* Enable DLI */
 void enable_dli(void) {
   ANTIC.nmien = NMIEN_VBI;
+
   while (ANTIC.vcount < 124);
   OS.vdslst = (void *) dli;
   ANTIC.nmien = NMIEN_VBI | NMIEN_DLI;
@@ -994,7 +1044,8 @@ void pressed_a_key(void) {
 
   if (ch == KEY_DELETE && entry_len > 0) {
     /* [Backspace] - Delete a letter */
-    SOUND(0, 145, 10, 8);
+    note1_ptr = ((note1_ptr - 1) % (sizeof(note_table) - 8));
+    play_chord(FALSE);
 
     entry_len--;
 
@@ -1005,14 +1056,14 @@ void pressed_a_key(void) {
     draw_word();
     show_avail();
 
-    SOUND(0, 0, 0, 0);
+    SOUND(3, 0, 0, 0);
   }
 
   if (ch == KEY_RETURN && entry_len >= 3) {
     /* [Return] - Submit the word */
-    SOUND(0, 0, 0, 15);
+    SOUND(3, 0, 0, 15);
     iv2_sleep(1);
-    SOUND(0, 0, 0, 0);
+    SOUND(3, 0, 0, 0);
 
     if (binsearch(input)) {
       /* Valid word! */
@@ -1052,13 +1103,16 @@ void pressed_a_key(void) {
       }
 
       /* Play a happy sound */
-      play_chord(TRUE, TRUE);
+  
+      note1_ptr = ((note1_ptr + 1) % (sizeof(note_table) - 8));
+      play_chord(TRUE);
+      note1_ptr = note_starts[word_cnt];
     } else {
       /* Invalid word! */
 
       /* Red screen & obnoxious sound */
       OS.color4 = 34;
-      play_chord(FALSE, TRUE);
+      play_chord(FALSE);
 
       /* "Shake" the word they input */
       for (i = 0; i < 10; i++) {
@@ -1110,18 +1164,19 @@ void pressed_a_key(void) {
         draw_word();
         show_avail();
 
-        play_chord(TRUE, FALSE);
+        note1_ptr = ((note1_ptr + 1) % (sizeof(note_table) - 8));
+        play_chord(TRUE);
       } else {
         /* Invalid (or already used) letter! */
 
-        play_chord(FALSE, FALSE);
+        play_chord(FALSE);
       }
     }
   }
 
   if ((ch == KEY_ESC || ch == (KEY_DELETE | KEY_SHIFT)) && entry_len > 0) {
     /* [Esc] or [Shift] + [Backspace] (aka [Delete]): Delete entire word */
-    SOUND(0, 200, 10, 8);
+    SOUND(3, 200, 10, 8);
 
     /* Blank the input */
     input[0] = '\0';
@@ -1137,7 +1192,7 @@ void pressed_a_key(void) {
     draw_word();
     show_avail();
 
-    SOUND(0, 0, 0, 0);
+    SOUND(3, 0, 0, 0);
   }
 }
 
@@ -1211,6 +1266,7 @@ void game_loop(void) {
     if (word_cnt == 3) {
       level++;
       next_level = TRUE;
+      note1_ptr = 0;
     }
   } while (!gameover && !next_level);
 }
@@ -1250,11 +1306,16 @@ void game_over(void) {
   }
 
   /* Game-over sound effect */
+  sound_timer = 0;
+  SOUND(0, 0, 0, 0);
+  SOUND(1, 0, 0, 0);
+  SOUND(2, 0, 0, 0);
+
   for (i = 0; i < 254; i += 16) {
-    SOUND(0, i, 10, 4);
+    SOUND(3, i, 10, 4);
     iv2_sleep(1);
   }
-  SOUND(0, 0, 0, 0);
+  SOUND(3, 0, 0, 0);
 
   /* Prompt them to press [Esc] to continue
      (any console key works, too) */
@@ -1306,6 +1367,7 @@ void main(void) {
   show_high_score();
   load_dict();
 
+  enable_vbi();
   enable_dli();
 
   /* Main loop: */
