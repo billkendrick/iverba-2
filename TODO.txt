@@ -1,9 +1,9 @@
 TODO for Invenies Verba 2.0
 2021-07-18
 
+ * Port muscal stuff to VBI routine
  * Fine-tune speeds
  * Dark mode toggle & save setting
- * Music of some sort
  * Finish documentation update
  * Help screen
  * Improve dictionary (> 16 char alphabet)

@@ -11,7 +11,7 @@
     June 30, 2021 - July 18, 2021
 */
 
-#define VERSION "PRE-RELEASE 3"
+#define VERSION "PRE-RELEASE 4"
 #define VERSION_DATE "2021-07-18"
 
 #include <stdio.h>
@@ -128,6 +128,130 @@ void myprint(unsigned char x, unsigned char y, char * str) {
     }
 
     scr_mem[pos + i] = c;
+  }
+}
+
+
+
+/*
+  Note table.  h/t Bobby Clark (Synthpopalooza)
+  Source: https://atariage.com/forums/topic/216807-complete-pokey-note-table-for-all-distortion-settings/
+*/
+unsigned char note_table[] = {
+  /* C */  243,
+  /* C# */ 230,
+  /* D */  217,
+  /* D# */ 204,
+  /* E */  193,
+  /* F */  182,
+  /* F# */ 172,
+  /* G */  162,
+  /* G# */ 153,
+  /* A */  144,
+  /* A# */ 136,
+  /* B */  128,
+  /* C */  121,
+  /* C# */ 114,
+  /* D */  108,
+  /* D# */ 102,
+  /* E */   96,
+  /* F */   91,
+  /* F# */  85,
+  /* G */   81,
+  /* G# */  76,
+  /* A */   72,
+  /* A# */  68,
+  /* B */   64,
+  /* C */   60,
+  /* C# */  57,
+  /* D */   53,
+  /* D# */  50,
+  /* E */   47,
+  /* F */   45,
+  /* F# */  42,
+  /* G */   40,
+  /* G# */  37,
+  /* A */   35,
+  /* A# */  33,
+  /* B */   31,
+  /* C */   30,
+  /* C# */  28,
+  /* D */   26,
+  /* D# */  25,
+  /* E */   23,
+  /* F */   22,
+  /* F# */  21,
+  /* G */   19,
+  /* G# */  18,
+  /* A */   17,
+  /* A# */  16
+};
+
+unsigned char vol[] = {
+   8, 15, 14, 13,
+  13, 12,  8, 10,
+   8,  6,  4,  2
+};
+
+
+/*
+  Play a chord
+
+  FIXME: Sound playing should be moved to a VBI routine
+
+  @param BOOL major - major (vs minor) chord?
+  @param BOOL separated - play one note at a time, or all three at once?
+  @sideeffect plays a sound
+*/
+void play_chord(BOOL major, BOOL separated) {
+  unsigned char note1_ptr, note1, note2, note3, tmp;
+  int i;
+
+  note1_ptr = POKEY_READ.random % (sizeof(note_table) - 8);
+  note1 = note_table[note1_ptr + 0];
+  if (major) {
+    /* 1---2--3 e.g. E,G#,B */
+    note2 = note_table[note1_ptr + 4];
+  } else {
+    /* A--B---C */
+    note2 = note_table[note1_ptr + 3];
+  }
+  note3 = note_table[note1_ptr + 7];
+
+  if (separated) {
+    if (!major) {
+      tmp = note1;
+      note1 = note3;
+      note3 = tmp;
+    }
+
+    for (i = 0; i < sizeof(vol); i+=2) {
+      SOUND(0, note1, 10, vol[i]);
+      iv2_sleep(1);
+    }
+
+    for (i = 0; i < sizeof(vol); i+=2) {
+      SOUND(0, note2, 10, vol[i]);
+      iv2_sleep(1);
+    }
+
+    for (i = 0; i < sizeof(vol); i+=2) {
+      SOUND(0, note3, 10, vol[i]);
+      iv2_sleep(1);
+    }
+
+    SOUND(0, 0, 0, 0);
+  } else {
+    for (i = 0; i < sizeof(vol); i++) {
+      SOUND(0, note1, 10, vol[i]);
+      SOUND(1, note2, 10, vol[i] >> 1);
+      SOUND(2, note3, 10, vol[i]);
+      iv2_sleep(1);
+    }
+
+    SOUND(0, 0, 0, 0);
+    SOUND(1, 0, 0, 0);
+    SOUND(2, 0, 0, 0);
   }
 }
 
@@ -928,16 +1052,13 @@ void pressed_a_key(void) {
       }
 
       /* Play a happy sound */
-      for (i = 0; i < 16; i++) {
-        SOUND(0, 61, 10, 15 - i);
-        iv2_sleep(1);
-      }
+      play_chord(TRUE, TRUE);
     } else {
       /* Invalid word! */
 
       /* Red screen & obnoxious sound */
       OS.color4 = 34;
-      SOUND(0, 220, 12, 10);
+      play_chord(FALSE, TRUE);
 
       /* "Shake" the word they input */
       for (i = 0; i < 10; i++) {
@@ -952,7 +1073,6 @@ void pressed_a_key(void) {
       } else {
         OS.color4 = (level << 4) + 14;
       }
-      SOUND(0, 0, 0, 0);
     }
   }
 
@@ -974,8 +1094,6 @@ void pressed_a_key(void) {
       if (pick != SRC_NOT_SET) {
         /* Valid letter! */
 
-        SOUND(0, 61, 10, 8);
-
         /* Add to the end of the input word */
         input[entry_len] = c;
         input[entry_len + 1] = '\0';
@@ -991,13 +1109,12 @@ void pressed_a_key(void) {
         /* Update the word, and available letters, accordingly */
         draw_word();
         show_avail();
-        SOUND(0, 0, 0, 0);
+
+        play_chord(TRUE, FALSE);
       } else {
         /* Invalid (or already used) letter! */
 
-        SOUND(0, 255, 10, 8);
-        iv2_sleep(2);
-        SOUND(0, 0, 0, 0);
+        play_chord(FALSE, FALSE);
       }
     }
   }
