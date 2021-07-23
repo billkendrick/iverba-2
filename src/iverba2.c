@@ -8,11 +8,11 @@
     August - September 2017
 
   * cc65 port:
-    June 30, 2021 - July 19, 2021
+    June 30, 2021 - July 22, 2021
 */
 
 #define VERSION "PRE-RELEASE 4"
-#define VERSION_DATE "2021-07-19"
+#define VERSION_DATE "2021-07-22"
 
 #include <stdio.h>
 #include <string.h>
@@ -360,7 +360,8 @@ void vbi(void) {
 
   /* A = vol[X] */
   asm("lda %v,x", vol);
-  asm("adc #$a0"); /* SOUND [0-3],???,10,vol */
+  asm("lsr");
+  asm("adc #$a0"); /* SOUND [0-2],???,10,vol */
 
   asm("sta %w", (unsigned)&POKEY_WRITE.audc1);
   asm("sta %w", (unsigned)&POKEY_WRITE.audc2);
@@ -596,6 +597,11 @@ void cache_scores(void) {
   }
 }
 
+void allocfail(void) {
+  myprint(0, 9, "not enough ram");
+  do { } while(1);
+}
+
 char * spinner = "I/-\\";
 
 /*
@@ -670,26 +676,23 @@ void load_dict(void) {
   sprintf(tmp_msg, "%d %d-letter words", num_words, wordlen);
   myprint(0, 8, tmp_msg);
 
-  /* Allocate space for the dictionary */
-  alloc = num_words * half_wordlen;
-
-  if (_heapmaxavail() < alloc) {
-    myprint(0, 9, "not enough ram");
-    do { } while(1);
-  }
-
-  words = (char *) malloc(alloc * sizeof(char));
-
-  /* Grab how many letters used in the dictionary */
+  /* Grab how many letters used in the dictionary & alloc space */
   disk_read((unsigned char *) &num_letters, 1);
-
-  /* Read the letters and their scores; make a reverse-look-up */
   lookups = (char *) malloc((num_letters * 2) * sizeof(char));
 
+  /* Allocate space for the dictionary (this is the big one!) */
+  alloc = num_words * half_wordlen;
+
+  words = (char *) malloc(alloc * sizeof(char));
+  if (words == NULL) {
+    allocfail();
+  }
+
+  /* Read the letters and their scores; make a reverse-look-up */
   disk_read((unsigned char *) lookups, num_letters * 2);
   cache_scores();
 
-  /* Load things (in 8 chunks, so we can show meters) */
+  /* Load dictionary (in 8 chunks, so we can show meters) */
   myprint(6, 9, "loading");
 
   dest = words;
@@ -885,6 +888,7 @@ void game_start(void) {
   int i;
 
   gameover = FALSE;
+  note1_ptr = 0;
   level = 1;
   score = 0;
   got_high_score = FALSE;
