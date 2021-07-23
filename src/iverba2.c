@@ -559,7 +559,7 @@ void title(void) {
   /* Draw title, author, version */
   myprint(1, 0, "INVENIES VERBA 2.0");
   myprint(1, 1, "bill kendrick 2021");
-  myprint(10 - strlen(VERSION) / 2, 3, VERSION);
+  // myprint(10 - strlen(VERSION) / 2, 3, VERSION); /* Now on the Help screen */
 
   /* Based-on... */
   myprint(4, 5, "based on lex");
@@ -1442,7 +1442,8 @@ void main(void) {
         } else {
           OS.color4 = (1 << 4) + 14;
         }
-      } else if (OS.ch == KEY_H || OS.ch == KEY_HELP) {
+        OS.color1 = (1 << 4) + 8;
+      } else if (OS.ch == KEY_H || POKEY_READ.kbcode == KEY_HELP) {
         show_help();
         title();
         show_title_prompts();
