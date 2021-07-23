@@ -8,11 +8,11 @@
     August - September 2017
 
   * cc65 port:
-    June 30, 2021 - July 22, 2021
+    June 30, 2021 - July 23, 2021
 */
 
 #define VERSION "PRE-RELEASE 4"
-#define VERSION_DATE "2021-07-22"
+#define VERSION_DATE "2021-07-23"
 
 #include <stdio.h>
 #include <string.h>
@@ -564,19 +564,54 @@ void title(void) {
   /* Based-on... */
   myprint(4, 5, "based on lex");
   myprint(1, 7, "by simple machine");
-
-  /* Version date */
-  myprint(10 - strlen(VERSION_DATE) / 2, 13, VERSION_DATE);
-
-  /* ANTIC or NTSC */
-  myprint(5, 14, "ANTIC DETECTED");
-  if (pal_speed) {
-    myprint(1, 14, "PAL");
-  } else {
-    myprint(0, 14, "NTSC");
-  }
 }
 
+
+void show_help(void) {
+  /* Blank the screen */
+  bzero(scr_mem, 20 * 24);
+
+  SCROLL(0);
+
+  /* Version # & date */
+  myprint(10 - strlen(VERSION) / 2, 0, VERSION);
+  myprint(10 - strlen(VERSION_DATE) / 2, 1, VERSION_DATE);
+
+  /* ANTIC or NTSC */
+  myprint(5, 2, "ANTIC DETECTED");
+  if (pal_speed) {
+    myprint(1, 2, "PAL");
+  } else {
+    myprint(0, 2, "NTSC");
+  }
+
+  /* Gameplay instructions... */
+
+  myprint(3, 3, "use the letters to");
+  /* N.B. No row 4 */
+  myprint(3, 5, "make words; RETURN");
+  /* N.B. No row 6 */
+  myprint(5, 7, "to submit");
+
+  myprint(0, 8, "avoid letter timeout");
+
+  /* N.B. No row 9 */
+
+  myprint(1, 10, "BKSPC, DELETE, ESC");
+  myprint(3, 11, "to clear word");
+
+  /* Hint about Dark mode toggle: */
+  myprint(0, 13, "D toggles dark mode");
+  myprint(1, 14, "from title screen");
+
+  /* Wait for keypress */
+  OS.ch = 255;
+  do {
+  } while (OS.ch == 255);
+  OS.ch = 255;
+
+  SCROLL(15);
+}
 
 /*
   Cache scores
@@ -904,6 +939,8 @@ void game_start(void) {
 
   deal_letters();
   /* N.B.: deal_letters() already calls show_avail() */
+
+  OS.ch = 255;
 }
 
 /*
@@ -1338,6 +1375,11 @@ void show_high_score(void) {
   myprint(10 - strlen(tmp_msg) / 2, 15, tmp_msg);
 }
 
+void show_title_prompts(void) {
+  myprint(4, 9, "press START");
+  myprint(0, 13, "press HELP for more");
+}
+
 /* Main! */
 void main(void) {
   int i;
@@ -1376,8 +1418,8 @@ void main(void) {
 
   /* Main loop: */
   do {
-    /* Prompt user to press [Start] to begin */
-    myprint(4, 9, "press START");
+    /* Prompt user to press [Start] to begin, or help */
+    show_title_prompts();
 
 /* FIXME */
 /*
@@ -1388,13 +1430,24 @@ void main(void) {
        (might update within this loop!) */
     show_high_score();
 
-/*
-199 IF PEEK(53279)=%3 THEN 30000
-*/
-/* FIXME */
-
     do {
-/* FIXME: Do something interesting */
+      /* [D] key toggles dark mode */
+      if (OS.ch == KEY_D) {
+        play_chord(dark);
+        dark = !dark;
+        OS.ch = 255;
+
+        if (dark) {
+          OS.color4 = (1 << 4) + 2;
+        } else {
+          OS.color4 = (1 << 4) + 14;
+        }
+      } else if (OS.ch == KEY_H || OS.ch == KEY_HELP) {
+        show_help();
+        title();
+        show_title_prompts();
+        show_high_score();
+      }
     } while(GTIA_READ.consol != 6);
 
 

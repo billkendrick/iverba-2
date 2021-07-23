@@ -1,10 +1,9 @@
 TODO for Invenies Verba 2.0
-2021-07-19
+2021-07-23
 
  * Fine-tune speeds
- * Dark mode toggle & save setting
+ * Dark mode save setting
  * Finish documentation update
- * Help screen
  * Improve dictionary (> 16 char alphabet)
  * Support for other dictionaries (German, Italian, etc.)
 
