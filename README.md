@@ -1,9 +1,8 @@
 # Invenies Verba ("Find the Words")
 - By Bill Kendrick <bill@newbreedsoftware.com>
+- http://www.newbreedsoftware.com/iverba/
 - Version 1 (TurboBASIC XL): August - September 18, 2014
-- Version 2 (C): June 30, 202 - July 15, 2021
-
-NOTE: This document is not yet fully up-to-date with 2.0
+- Version 2 (C): June 30, 202 - July 23, 2021
 
 ## About
 This game is based loosely the game "Lex", by Simple Machine, LLC,
@@ -14,8 +13,8 @@ open source license, although this game is not based on that source.
 ## Objective
 The game presents you with a random set of letters.  Use the letters
 to construct words (of 3 or more letters each) and gain points for
-each letter used.  As you use letters, new letters appear to replace
-them.
+each letter used.  As you utilize letters, new ones appear in their
+place.
 
 Each letter is worth a certain score.  More common letters are worth
 fewer points than less common letters. (e.g., letter "E" is worth
@@ -35,25 +34,15 @@ provide a score gain of 4 points on level 2, 6 points on level 3, etc.)
 However, the speed at which meters fill increases at each new level.
 
 ## Start-up
-
-### Note: This pre-release does not offer multiple dictionaries
-
-When you first run the game, you'll be asked to choose a dictionary.
-Currently, American English (EN_US), Spanish (ES_ES), and French (FR_FR)
-are available.  (Other languages are possible, see the "Extending" section,
-below.)
-
-Press the key that corresponds to the dictionary you wish to play
-(e.g., [A] for English, etc.)  The title screen will appear and the
-dictionary will be loaded.
-
-After you've chosen a dictionary, the game will remember your choice.
-On subsequent loads, the game won't ask again.  However, you can press
-the [OPTION] key from the title screen to bring the dictionary menu up
-again.
-
 Once the dictionary loads, the title screen will prompt you to press
-the [START] key to begin the game.
+a key to begin the game.
+
+The [START] key begins a standard game.
+
+The [P] key begins a practice game.  Your score is not eligible to
+be recorded as the high score.  The game does not end when any letter's
+meter fills completely; you can continue playing until you abort the
+game manually (see below).
 
 ## Game Screen
 Random letters will appear in the middle of the screen.  Above each letter
@@ -79,8 +68,11 @@ Use the letter keys on the keyboard to enter letters and create words.
 Press [RETURN] to submit the word.  (If the word doesn't exist in
 the dictionary, a tone will sound.)
 
-Press [BACKSPACE] to delete letters.  [SHIFT]+[BACKSPACE] and [ESC]
-both delete the entire word.
+Press [BACKSPACE] to delete letters.  [SHIFT]+[BACKSPACE] deletes
+the entire word.
+
+Press [ESC] to abort your game (required, when playing in
+practice mode!)
 
 ## How the Game Was Made
 ### The original
@@ -217,7 +209,7 @@ get back to normal.  (And note that what's shown in the
 `GRAPHICS 0`-style text window at the bottom is not affected.)
 
 This game uses a full 1KB font, with all 128 symbols
-redefined.  A Display List Interrupt is utilized to
+redefined.  A Display List Interrupt (DLI) is utilized to
 do this adjustment for one line -- where the game tiles
 (the available letters) are shown on the screen.
 
@@ -255,32 +247,36 @@ This works because, while the PAL standard refresh less frequently,
 it offers more scanlines than NTSC.  The `VCOUNT` register won't
 go as high on an NTSC system.
 
-## Extending
+### Vertical Blank Interrupt (VBI) driven sound
+The original TurboBASIC XL version of the game used simple BASIC
+`SOUND` calls to briefly play different notes corresponding to
+different interactions (adding a letter, typing an invalid letter,
+etc.)  Generally, it sound begin playing a sound, do some action
+(more BASIC code), and then silence the sound.  The amount of time
+spent with game logic was enough for the sound to play a reasonable
+amount of time.
 
-### Note: This pre-release does not offer multiple dictionaries
+When ported to C, the sounds played for such a brief time that
+it was hard to hear them.  Adding a delay loop would help, but
+would slow down the rest of the game, including its responsiveness
+to the player's keyboard input.
 
-The game uses dictionaries that contain words made up of 15 ASCII
-letters -- for example, the English dictionary that comes with the
-game uses words consisting of ACDEGILMNOPRSTU.  This is so that the
-letters can be 'packed', two letters per byte (allowing for a
-character representing a blank space, to fill words that are shorter
-than the maximum length).
+So instead, a small VBI routine was created which plays sounds;
+chords, in fact, while the rest of the game logic is occuring.
+Major chords are played when successfully adding letters, and
+successfully submitting a valid word.  Minor chords are played
+when erasing letters (e.g., with [BACKSPACE]) or if a word is
+invalid.
 
-The "mkdict.php" script reads a dictionary full of words
-(e.g., /usr/share/dict/american-english on my Ubuntu laptop),
-determines which letters occur the most, finds all words containing
-only those letters, and packs them into a file -- along with a list
-of which letters each half-byte value represents, and the scoring
-each letter should get in the game, based on the letter's frequency
-in the original dictionary file (e.g., "en_us.dic").
+To make it interesting, a progressive series of chords are
+played as you enter more letters; it descends when you erase
+letters.
 
-On Ubuntu, other dictionaries (word lists) are available; you can
-see which ones there are by consulting the "wordlist" package;
-for example, the "Provided by" section of the output of
-"aptitue show wordlist", or the "Reverse Provides" section of the
-output of "apt-cache showpkg wordlist".  For example,
-"wnorwegian".
+### Mostly C; only some assembly
+Only the Display List Interrupt (DLI) and Vertical Blank Interrupt (VBI)
+described above, as well as a very small routine to invoke the Atari
+OS's Central Input/Output (CIO) routine, were written in assembly
+language.  The former two are inline, within the C source code ".c"
+files (wrapped in `asm()` calls), while the latter is in an
+assembly language ".s" file.
 
-The other option the "mkdict.php" program accepts is the maximum length
-of words, e.g. 8.  It may be necessary to make dictionaries with
-smaller words, to fit everything within the Atari's memory constraints.

@@ -11,7 +11,7 @@
     June 30, 2021 - July 23, 2021
 */
 
-#define VERSION "PRE-RELEASE 4"
+#define VERSION "PRE-RELEASE 5"
 #define VERSION_DATE "2021-07-23"
 
 #include <stdio.h>
@@ -31,7 +31,7 @@
 #define TRUE 1
 
 unsigned char * kbcode_to_atascii;
-unsigned char wordlen, half_wordlen;
+unsigned char wordlen, half_wordlen, avail_x;
 #define SRC_NOT_SET (wordlen + 1)
 char tmp_msg[41];
 char * grabbed_word, * best_word, * input, * avail, * blank;
@@ -44,7 +44,7 @@ int dict_ptr_mid;
 long hiscore = 0, score;
 BOOL got_high_score;
 int best;
-BOOL gameover;
+BOOL practice, gameover;
 unsigned char level, word_cnt;
 int entry_len;
 unsigned char * scr_mem;
@@ -597,12 +597,12 @@ void show_help(void) {
 
   /* N.B. No row 9 */
 
-  myprint(1, 10, "BKSPC, DELETE, ESC");
-  myprint(3, 11, "to clear word");
+  myprint(0, 10, "BKSP/DEL clears word");
+  myprint(4, 11, "ESC ends game");
 
   /* Hint about Dark mode toggle: */
   myprint(0, 13, "D toggles dark mode");
-  myprint(1, 14, "from title screen");
+  myprint(0, 14, "P for practice game");
 
   /* Wait for keypress */
   OS.ch = 255;
@@ -689,6 +689,7 @@ void load_dict(void) {
 
   disk_read((unsigned char *) &wordlen, 1);
   half_wordlen = wordlen / 2;
+  avail_x = 10 - (half_wordlen * 2);
 
   /* Allocate space for things based on the word length dictated by the
      dictionary being used */
@@ -826,23 +827,28 @@ unsigned char get_mad_sym(unsigned char madness, int offset) {
 */
 void show_avail(void) {
   int x, i;
-  char c, mad_sym;
+  char c, m, mad_sym;
 
-  x = 10 - ((wordlen / 2) * 2);
+  x = avail_x;
 
   for (i = 0; i < wordlen; i++) {
     c = avail[i];
     if (used[i]) {
-      c = c - 32; /* change color */
+      c = c - 64; /* change color */
     }
 
-    mad_sym = get_mad_sym(mad[i] >> 8, i);
+    m = mad[i] >> 8;
+    if (m > 8) {
+      m = 8;
+    }
+    mad_sym = get_mad_sym(m, i);
 
-    sprintf(tmp_msg, "%c%c", mad_sym + ' ', c);
-    myprint(x, 9, tmp_msg);
-
+    /* FIXME: Replace with direct scr_mem[] writes */
     sprintf(tmp_msg, "%2d", ltr_scores[avail[i] - 'a']);
     myprint(x, 8, tmp_msg);
+
+    scr_mem[9 * 20 + x] = mad_sym;
+    scr_mem[9 * 20 + x + 1] = c;// + 32;
 
     x += 2;
   }
@@ -930,6 +936,7 @@ void game_start(void) {
   best_word[0] = '\0';
   best = 0;
   bzero(scr_mem, 20 * 24);
+
   entry_len = 0;
   strcpy(input, blank);
   strcpy(avail, blank);
@@ -939,6 +946,10 @@ void game_start(void) {
 
   deal_letters();
   /* N.B.: deal_letters() already calls show_avail() */
+
+  if (practice) {
+    myprint(6, 15, "practice");
+  }
 
   OS.ch = 255;
 }
@@ -1048,9 +1059,11 @@ void draw_word(void) {
 */
 void show_score(void) {
   /* Track high score */
-  if (score > hiscore) {
-    hiscore = score;
-    got_high_score = TRUE;
+  if (!practice) {
+    if (score > hiscore) {
+      hiscore = score;
+      got_high_score = TRUE;
+    }
   }
 
   /* Draw score & high score */
@@ -1215,8 +1228,8 @@ void pressed_a_key(void) {
     }
   }
 
-  if ((ch == KEY_ESC || ch == (KEY_DELETE | KEY_SHIFT)) && entry_len > 0) {
-    /* [Esc] or [Shift] + [Backspace] (aka [Delete]): Delete entire word */
+  if ((ch == (KEY_DELETE | KEY_SHIFT)) && entry_len > 0) {
+    /* [Shift] + [Backspace] (aka [Delete]): Delete entire word */
     SOUND(3, 200, 10, 8);
 
     /* Blank the input */
@@ -1234,6 +1247,11 @@ void pressed_a_key(void) {
     show_avail();
 
     SOUND(3, 0, 0, 0);
+  }
+
+  if (ch == KEY_ESC) {
+    /* [Esc] aborts a game (required in pratcie mode!) */
+    gameover = TRUE;
   }
 }
 
@@ -1267,8 +1285,9 @@ void show_meters(void) {
 
     m = mad[i] >> 8;
     if (m > 8) {
+      /* Full meter ends game! (Unless in practice mode) */
       m = 8;
-      gameover = TRUE;
+      gameover = !practice;
     }
 
     scr_mem[9 * 20 + x] = get_mad_sym(m, i);
@@ -1343,7 +1362,8 @@ void game_over(void) {
      save the new high score to disk */
   if (got_high_score) {
     myprint(3, 7, "new high score");
-    save_high_score();
+  } else if (practice) {
+    myprint(6, 7, "practice");
   }
 
   /* Game-over sound effect */
@@ -1357,6 +1377,11 @@ void game_over(void) {
     iv2_sleep(1);
   }
   SOUND(3, 0, 0, 0);
+
+  /* Save high score, if applicable */
+  if (got_high_score) {
+    save_high_score();
+  }
 
   /* Prompt them to press [Esc] to continue
      (any console key works, too) */
@@ -1376,13 +1401,14 @@ void show_high_score(void) {
 }
 
 void show_title_prompts(void) {
-  myprint(4, 9, "press START");
-  myprint(0, 13, "press HELP for more");
+  myprint(2, 9, "press START or P");
+  myprint(1, 13, "HELP or H for help");
 }
 
 /* Main! */
 void main(void) {
   int i;
+  BOOL start;
 
   /* Point to the XL OS's keyboard code -> ATASCII look-up table */
   kbcode_to_atascii = (char *) OS.keydef;
@@ -1430,9 +1456,11 @@ void main(void) {
        (might update within this loop!) */
     show_high_score();
 
+    start = FALSE;
+    OS.ch = 255;
     do {
-      /* [D] key toggles dark mode */
       if (OS.ch == KEY_D) {
+        /* [D] key toggles dark mode */
         play_chord(dark);
         dark = !dark;
         OS.ch = 255;
@@ -1444,12 +1472,21 @@ void main(void) {
         }
         OS.color1 = (1 << 4) + 8;
       } else if (OS.ch == KEY_H || POKEY_READ.kbcode == KEY_HELP) {
+        /* [H] key switches to help screen */
         show_help();
         title();
         show_title_prompts();
         show_high_score();
-      }
-    } while(GTIA_READ.consol != 6);
+      } else if (OS.ch == KEY_P) {
+        /* [P] key beings a practice game */
+        practice = TRUE;
+        start = TRUE;
+      } else if (CONSOL_START(GTIA_READ.consol)) {
+        /* [Start] key begins a regular game */
+        practice = FALSE;
+        start = TRUE;
+      } 
+    } while (!start);
 
 
     /* Start a new game */ 
