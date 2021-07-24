@@ -1260,6 +1260,10 @@ void pressed_a_key(void) {
 
 #define ANTI_SPEED 32 /* the higher the number, the slower things increase */
 
+int letter_speed(unsigned char base, unsigned char level, unsigned char framerate) {
+  return (((11 - base) << 8) * level) / (ANTI_SPEED * framerate);
+}
+
 /*
   Increase values of, and show animated flame meters, denoting
   how 'mad' each letter is
@@ -1277,10 +1281,10 @@ void show_meters(void) {
 
     if (pal_speed) {
       /* PAL; clicks less often, so add madness more quickly */
-      mad[i] += (((11 - s) << 8) * level) / (ANTI_SPEED * 50);
+      mad[i] += letter_speed(s, level, 50);
     } else {
       /* NTSC; clicks more often, so add madness less quickly */
-      mad[i] += (((11 - s) << 8) * level) / (ANTI_SPEED * 60);
+      mad[i] += letter_speed(s, level, 60);
     }
 
     m = mad[i] >> 8;
