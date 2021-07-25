@@ -31,8 +31,8 @@
 #define TRUE 1
 
 unsigned char * kbcode_to_atascii;
-unsigned char wordlen, half_wordlen, avail_x;
-#define SRC_NOT_SET (wordlen + 1)
+unsigned char wordlen, half_wordlen, avail_x, wordlen_plus1;
+#define SRC_NOT_SET wordlen_plus1
 char tmp_msg[41];
 char * grabbed_word, * best_word, * input, * avail, * blank;
 BOOL * used;
@@ -48,7 +48,7 @@ BOOL practice, gameover;
 unsigned char level, word_cnt;
 int entry_len;
 unsigned char * scr_mem;
-unsigned char ltr_scores[26];
+unsigned char ltr_scores[27];
 BOOL pal_speed;
 BOOL dark = FALSE; /* FIXME: Allow changing & save setting */
 
@@ -141,9 +141,9 @@ void myprint(unsigned char x, unsigned char y, char * str) {
     c = str[i];
 
     if (c < 32) {
-      c = c + 64;
+      c += 64;
     } else if (c < 96) {
-      c = c - 32;
+      c -= 32;
     }
 
     scr_mem[pos + i] = c;
@@ -622,7 +622,7 @@ void show_help(void) {
 void cache_scores(void) {
   int j, l;
 
-  for (j = 0; j < 26; j++) {
+  for (j = 0; j < 27; j++) {
     ltr_scores[j] = 0;
   }
 
@@ -646,6 +646,9 @@ char * spinner = "I/-\\";
   @sideeffect sets global `dict_ptr_mid` to `num_words / 2`
   @sideeffect sets global `wordlen` to max size of words in dictionary
   @sideeffect sets global `half_wordlen` to `wordlen / 2`
+  @sideeffect sets global `wordlen_plus_1` to `wordlen + 1`
+    (used both for alloc()'ing strings with NUL terminators,
+    and for an out-of-bounds "unset" value for letter sources)
   @sideeffect sets global `num_letters` to number of letters used by words in dictionary
   @sideeffect fills global array `ltr_scores[]` (via `cache_scores()`)
   @sideeffect allocates space for global string `grabbed_word`
@@ -688,21 +691,22 @@ void load_dict(void) {
   dict_ptr_mid = num_words / 2;
 
   disk_read((unsigned char *) &wordlen, 1);
+  wordlen_plus1 = wordlen + 1;
   half_wordlen = wordlen / 2;
   avail_x = 10 - (half_wordlen * 2);
 
   /* Allocate space for things based on the word length dictated by the
      dictionary being used */
-  grabbed_word = (char *) malloc((wordlen + 1) * sizeof(char));
-  best_word = (char *) malloc((wordlen + 1) * sizeof(char));
-  input = (char *) malloc((wordlen + 1) * sizeof(char));
-  avail = (char *) malloc((wordlen + 1) * sizeof(char));
+  grabbed_word = (char *) malloc((wordlen_plus1) * sizeof(char));
+  best_word = (char *) malloc((wordlen_plus1) * sizeof(char));
+  input = (char *) malloc((wordlen_plus1) * sizeof(char));
+  avail = (char *) malloc((wordlen_plus1) * sizeof(char));
   used = (BOOL *) malloc((wordlen) * sizeof(BOOL));
   src = (unsigned char *) malloc((wordlen) * sizeof(char));
   mad = (unsigned int *) malloc((wordlen) * sizeof(int));
 
   /* Allocate space for `blank` string & fill it, too */
-  blank = (char *) malloc((wordlen + 1) * sizeof(char));
+  blank = (char *) malloc((wordlen_plus1) * sizeof(char));
   for (i = 0; i < wordlen; i++) {
     blank[i] = ' ';
   }
@@ -740,8 +744,8 @@ void load_dict(void) {
 
     disk_read(dest, size);
 
-    dest = dest + size;
-    tot = tot + size;
+    dest += size;
+    tot += size;
     if (tot + size > alloc) {
       size = alloc - tot;
     }
@@ -848,9 +852,10 @@ void show_avail(void) {
     myprint(x, 8, tmp_msg);
 
     scr_mem[9 * 20 + x] = mad_sym;
-    scr_mem[9 * 20 + x + 1] = c;// + 32;
+    x++;
 
-    x += 2;
+    scr_mem[9 * 20 + x] = c;
+    x++;
   }
 }
 
@@ -1124,7 +1129,7 @@ void pressed_a_key(void) {
 
       /* Increment score */
       add = cur_score + bonus;
-      score = score + add;
+      score += add;
       show_score();
 
       /* Track our best word */
