@@ -8,11 +8,11 @@
     August - September 2017
 
   * cc65 port:
-    June 30, 2021 - July 23, 2021
+    June 30, 2021 - July 25, 2021
 */
 
-#define VERSION "PRE-RELEASE 5"
-#define VERSION_DATE "2021-07-23"
+#define VERSION "PRE-RELEASE 6"
+#define VERSION_DATE "2021-07-25"
 
 #include <stdio.h>
 #include <string.h>
