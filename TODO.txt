@@ -22,4 +22,5 @@ TODO for Invenies Verba 2.0
      players to enter words that would have them.  e.g.,
      "BAGAZJA" would be acceptable as either "bagazją" (luggage) or
      "bagazja" (baggage).  In that case, only the German "ß"
-     (e.g., to allow "ABFRAß" (eroded))
+     (e.g., to allow "ABFRAß" (eroded)).  NOTE: This has been added to the
+     font (replacing unused "@" symbol).
