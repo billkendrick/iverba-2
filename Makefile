@@ -25,6 +25,7 @@ clean:
 	-rm build/iverba2.xex
 	-rm build/hiscore.dat
 	-rm build/*.dic
+	-rm build/*.dic.txt
 	-rm obj/*.o
 	-rm asm/*.s
 	-rm build/iverba2.map
@@ -32,25 +33,25 @@ clean:
 	-rm tools/font-to-h
 
 build/de_de.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/ngerman build/de_de.dic 8
+	 tools/mkdict.php /usr/share/dict/ngerman build/de_de.dic 8 15
 
 build/en_uk.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/british-english build/en_uk.dic 8
+	 tools/mkdict.php /usr/share/dict/british-english build/en_uk.dic 8 15
 
 build/en_us.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/american-english build/en_us.dic 8
+	 tools/mkdict.php /usr/share/dict/american-english build/en_us.dic 8 15
 
 build/es_es.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/spanish build/es_es.dic 8
+	 tools/mkdict.php /usr/share/dict/spanish build/es_es.dic 8 13
 
 build/fr_fr.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/french build/fr_fr.dic 6
+	 tools/mkdict.php /usr/share/dict/french build/fr_fr.dic 8 12
 
 build/it_it.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/italian build/it_it.dic 8
+	 tools/mkdict.php /usr/share/dict/italian build/it_it.dic 8 15
 
 build/pl_pl.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/polish build/pl_pl.dic 4
+	 tools/mkdict.php /usr/share/dict/polish build/pl_pl.dic 8 11
 
 iverba2.atr:	disk/iverba2.atr.in \
 		build/iverba2.xex \

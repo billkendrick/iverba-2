@@ -301,6 +301,12 @@ unsigned char binsearch(char * str) {
     if (cmp == 0) {
       found = TRUE;
     } else {
+      if (grabbed_word[0] == ' ') {
+        /* Dictionary has an odd number of words;
+           don't get tricked by strcmp() against spaces! */
+        cmp = -1;
+      }
+
       if (cmp > 0) {
         cursor += cut;
         if (cursor >= num_words) {
