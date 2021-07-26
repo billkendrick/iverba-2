@@ -11,6 +11,7 @@ if ($argc < 3) {
 }
 $INFILE = $argv[1]; // "/usr/share/dict/american-english-large";
 
+/* FIXME: Completely rework how we pack letters to support all [up-to] 27 characters! */
 $MAX_LETTERS = 15; /* No more than 15 (we pack two letters into one byte, and need a blank character, too!) */
 $MAX_WORDLEN = intval($argv[3]); /* Should be even */
 if ($MAX_WORDLEN < 2 || $MAX_WORDLEN > 8 || ($MAX_WORDLEN % 2) <> 0) {
@@ -27,8 +28,48 @@ echo "Max word len: $MAX_WORDLEN\n";
 echo "Writing: $OUTFILE\n";
 echo "\n";
 
+$ESZETT = "<"; /* next key after the "0" on Atari keyboards */
+
+$diacritic_removals = array(
+  "á" => "a",
+  "â" => "a",
+  "à" => "a",
+  "ą" => "a",
+  "ć" => "c",
+  "ç" => "c",
+  "é" => "e",
+  "ê" => "e",
+  "è" => "e",
+  "ë" => "e",
+  "ę" => "e",
+  "í" => "i",
+  "î" => "i",
+  "ì" => "i",
+  "ï" => "i",
+  "ł" => "l",
+  "ń" => "n",
+  "ñ" => "n",
+  "ó" => "o",
+  "ô" => "o",
+  "ò" => "o",
+  "ö" => "o",
+  "ő" => "o",
+  "ś" => "s",
+  "ß" => $ESZETT,
+  "ú" => "u",
+  "û" => "u",
+  "ù" => "u",
+  "ü" => "u",
+  "ű" => "u",
+  "ÿ" => "y",
+  "ź" => "z",
+  "ż" => "z",
+);
+
+$diacritics = implode(array_keys($diacritic_removals));
+
 $cmd = "cat $INFILE";
-$cmd .= ' | grep "^[abcdefghijklmnopqrstuvwxyz]\{3,' . $MAX_WORDLEN . '\}$"';
+$cmd .= ' | grep "^[abcdefghijklmnopqrstuvwxyz' . $diacritics . ']\{3,' . $MAX_WORDLEN . '\}$"';
 
 echo $cmd."\n";
 $pi = popen($cmd, "r");
@@ -41,11 +82,16 @@ $letters = array();
 for ($i = ord("a"); $i <= ord("z"); $i++) {
   $letters[chr($i)] = 0;
 }
+$letters[$ESZETT] = 0;
 
 $total_letters = 0;
 
 while (!feof($pi)) {
   $w = trim(fgets($pi));
+  foreach ($diacritic_removals as $dia => $replacement) {
+    $old_w = $w;
+    $w = str_replace($dia, $replacement, $w, $count);
+  }
   if (!feof($pi)) {
     for ($i = 0; $i < strlen($w); $i++) {
       $c = substr($w, $i, 1);
@@ -56,7 +102,9 @@ while (!feof($pi)) {
 }
 arsort($letters);
 
-for ($i = 0; $i < 26 - $MAX_LETTERS; $i++) {
+/* N.B. 27 because we support a-z plus German eszett (ß);
+   letters with diacrtics are 'normalized' to a-z */
+for ($i = 0; $i < 27 - $MAX_LETTERS; $i++) {
   array_pop($letters);
 }
 

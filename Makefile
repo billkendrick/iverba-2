@@ -31,14 +31,46 @@ clean:
 	-rm font/iverba2_fnt.h
 	-rm tools/font-to-h
 
-build/en_us.dic:	tools/mkdict.php
-	tools/mkdict.php /usr/share/dict/american-english build/en_us.dic 8
+build/de_de.dic:	tools/mkdict.php
+	 tools/mkdict.php /usr/share/dict/ngerman build/de_de.dic 8
 
-iverba2.atr:	disk/iverba2.atr.in build/iverba2.xex \
-		build/en_us.dic build/hiscore.dat
+build/en_uk.dic:	tools/mkdict.php
+	 tools/mkdict.php /usr/share/dict/british-english build/en_uk.dic 8
+
+build/en_us.dic:	tools/mkdict.php
+	 tools/mkdict.php /usr/share/dict/american-english build/en_us.dic 8
+
+build/es_es.dic:	tools/mkdict.php
+	 tools/mkdict.php /usr/share/dict/ngerman build/es_es.dic 8
+
+build/fr_fr.dic:	tools/mkdict.php
+	 tools/mkdict.php /usr/share/dict/ngerman build/fr_fr.dic 8
+
+build/it_it.dic:	tools/mkdict.php
+	 tools/mkdict.php /usr/share/dict/ngerman build/it_it.dic 8
+
+build/pl_pl.dic:	tools/mkdict.php
+	 tools/mkdict.php /usr/share/dict/ngerman build/pl_pl.dic 8
+
+iverba2.atr:	disk/iverba2.atr.in \
+		build/iverba2.xex \
+		build/de_de.dic \
+		build/en_uk.dic \
+		build/en_us.dic \
+		build/es_es.dic \
+		build/fr_fr.dic \
+		build/it_it.dic \
+		build/pl_pl.dic \
+		build/hiscore.dat
 	cp disk/iverba2.atr.in iverba2.atr
-	${FRANNY} -A iverba2.atr -i build/iverba2.xex -o AUTORUN
+	${FRANNY} -t m -A iverba2.atr -i build/iverba2.xex -o AUTORUN
+	${FRANNY} -A iverba2.atr -i build/de_de.dic -o DE_DE.DIC
+	${FRANNY} -A iverba2.atr -i build/en_uk.dic -o EN_UK.DIC
 	${FRANNY} -A iverba2.atr -i build/en_us.dic -o EN_US.DIC
+	${FRANNY} -A iverba2.atr -i build/es_es.dic -o ES_ES.DIC
+	${FRANNY} -A iverba2.atr -i build/fr_fr.dic -o FR_FR.DIC
+	${FRANNY} -A iverba2.atr -i build/it_it.dic -o IT_IT.DIC
+	${FRANNY} -A iverba2.atr -i build/pl_pl.dic -o PL_PL.DIC
 	${FRANNY} -A iverba2.atr -i build/hiscore.dat -o HISCORE.DAT
 
 build/iverba2.xex:	obj/iverba2.o obj/sound.o obj/cio.o src/atari.cfg
@@ -99,6 +131,6 @@ build/hiscore.dat:
 #    (e.g., "mv blank.atr iverba2.atr.in")
 #    to copy over the existing file; be sure to commit!
 blank.atr:
-	${FRANNY} -C blank.atr -d s -f a
+	${FRANNY} -C blank.atr -d d -f a
 	${FRANNY} -F blank.atr
 
