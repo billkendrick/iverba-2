@@ -78,6 +78,7 @@ if ($pi === false) {
   exit(1);
 }
 
+$all_letters = array();
 $letters = array();
 for ($i = ord("a"); $i <= ord("z"); $i++) {
   $letters[chr($i)] = 0;
@@ -86,17 +87,24 @@ $letters[$ESZETT] = 0;
 
 $total_letters = 0;
 
+$seen_words = array();
 while (!feof($pi)) {
   $w = trim(fgets($pi));
-  foreach ($diacritic_removals as $dia => $replacement) {
-    $old_w = $w;
-    $w = str_replace($dia, $replacement, $w, $count);
-  }
   if (!feof($pi)) {
     for ($i = 0; $i < strlen($w); $i++) {
       $c = substr($w, $i, 1);
-      $letters[$c]++;
-      $total_letters++;
+      $all_letters[$c] = true;
+    }
+    foreach ($diacritic_removals as $dia => $replacement) {
+      $w = str_replace($dia, $replacement, $w, $count);
+    }
+    if (!in_array($w, $seen_words)) {
+      for ($i = 0; $i < strlen($w); $i++) {
+        $c = substr($w, $i, 1);
+        $letters[$c]++;
+        $total_letters++;
+      }
+      $seen_words[] = $w;
     }
   }
 }
@@ -139,9 +147,14 @@ foreach ($letters as $k=>$v) {
   $LETTERS .= $k;
 }
 
-echo "Letters: $LETTERS\n";
+$ALL_LETTERS = "";
+foreach ($all_letters as $k=>$v) {
+  $ALL_LETTERS .= $k;
+}
 
-$pi = popen('grep "^[' . $LETTERS . ']\{3,' . $MAX_WORDLEN . '\}$" '.$INFILE, "r");
+echo "Letters: $LETTERS ($ALL_LETTERS)\n";
+
+$pi = popen('grep "^[' . $ALL_LETTERS . ']\{3,' . $MAX_WORDLEN . '\}$" '.$INFILE, "r");
 if ($pi === false) {
   echo "Error opening grep of $INFILE!\n";
   exit(1);
@@ -217,6 +230,8 @@ foreach ($words as $w) {
 }
 
 fclose($fo);
+
+echo "\n\n";
 
 /*
 $fo = fopen("lexwords.txt", "w");

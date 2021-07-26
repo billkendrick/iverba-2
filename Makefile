@@ -41,16 +41,16 @@ build/en_us.dic:	tools/mkdict.php
 	 tools/mkdict.php /usr/share/dict/american-english build/en_us.dic 8
 
 build/es_es.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/ngerman build/es_es.dic 8
+	 tools/mkdict.php /usr/share/dict/spanish build/es_es.dic 8
 
 build/fr_fr.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/ngerman build/fr_fr.dic 8
+	 tools/mkdict.php /usr/share/dict/french build/fr_fr.dic 6
 
 build/it_it.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/ngerman build/it_it.dic 8
+	 tools/mkdict.php /usr/share/dict/italian build/it_it.dic 8
 
 build/pl_pl.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/ngerman build/pl_pl.dic 8
+	 tools/mkdict.php /usr/share/dict/polish build/pl_pl.dic 4
 
 iverba2.atr:	disk/iverba2.atr.in \
 		build/iverba2.xex \
