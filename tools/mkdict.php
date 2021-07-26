@@ -93,7 +93,7 @@ while (!feof($pi)) {
   if (!feof($pi)) {
     for ($i = 0; $i < strlen($w); $i++) {
       $c = substr($w, $i, 1);
-      $all_letters[$c] = true;
+      // $all_letters[$c] = true;
     }
     foreach ($diacritic_removals as $dia => $replacement) {
       $w = str_replace($dia, $replacement, $w, $count);
@@ -154,7 +154,8 @@ foreach ($all_letters as $k=>$v) {
 
 echo "Letters: $LETTERS ($ALL_LETTERS)\n";
 
-$pi = popen('grep "^[' . $ALL_LETTERS . ']\{3,' . $MAX_WORDLEN . '\}$" '.$INFILE, "r");
+// FIXME
+$pi = popen('grep "^[' . $LETTERS . ']\{3,' . $MAX_WORDLEN . '\}$" '.$INFILE, "r");
 if ($pi === false) {
   echo "Error opening grep of $INFILE!\n";
   exit(1);
