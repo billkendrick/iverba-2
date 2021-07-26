@@ -3,14 +3,8 @@ once the features are re-implemented in Invenies Verba 2.0...
 
 ...
 
-When you first run the game, you'll be asked to choose a dictionary.
-Currently, American English (EN_US), Spanish (ES_ES), and French (FR_FR)
-are available.  (Other languages are possible, see the "Extending" section,
-below.)
+(Other languages are possible, see the "Extending" section, below.)
 
-Press the key that corresponds to the dictionary you wish to play
-(e.g., [A] for English, etc.)  The title screen will appear and the
-dictionary will be loaded.
 
 After you've chosen a dictionary, the game will remember your choice.
 On subsequent loads, the game won't ask again.  However, you can press

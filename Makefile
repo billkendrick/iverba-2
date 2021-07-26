@@ -26,6 +26,7 @@ clean:
 	-rm build/hiscore.dat
 	-rm build/*.dic
 	-rm build/*.dic.txt
+	-rm build/dict.lst
 	-rm obj/*.o
 	-rm asm/*.s
 	-rm build/iverba2.map
@@ -33,25 +34,34 @@ clean:
 	-rm tools/font-to-h
 
 build/de_de.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/ngerman build/de_de.dic 8 15
+	tools/mkdict.php /usr/share/dict/ngerman build/de_de.dic 8 15
 
 build/en_uk.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/british-english build/en_uk.dic 8 15
+	tools/mkdict.php /usr/share/dict/british-english build/en_uk.dic 8 15
 
 build/en_us.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/american-english build/en_us.dic 8 15
+	tools/mkdict.php /usr/share/dict/american-english build/en_us.dic 8 15
 
 build/es_es.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/spanish build/es_es.dic 8 13
+	tools/mkdict.php /usr/share/dict/spanish build/es_es.dic 8 13
 
 build/fr_fr.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/french build/fr_fr.dic 8 12
+	tools/mkdict.php /usr/share/dict/french build/fr_fr.dic 8 12
 
 build/it_it.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/italian build/it_it.dic 8 15
+	tools/mkdict.php /usr/share/dict/italian build/it_it.dic 8 15
 
 build/pl_pl.dic:	tools/mkdict.php
-	 tools/mkdict.php /usr/share/dict/polish build/pl_pl.dic 8 11
+	tools/mkdict.php /usr/share/dict/polish build/pl_pl.dic 8 11
+
+build/dict.lst:
+	-rm build/dict.lst
+	printf '%-8s' \
+		`ls build/*.dic \
+			| cut -d "/" -f 2 | cut -d "." -f 1 \
+			| tr "a-z" "A-Z" \
+		` \
+	> build/dict.lst
 
 iverba2.atr:	disk/iverba2.atr.in \
 		build/iverba2.xex \
@@ -62,6 +72,7 @@ iverba2.atr:	disk/iverba2.atr.in \
 		build/fr_fr.dic \
 		build/it_it.dic \
 		build/pl_pl.dic \
+		build/dict.lst \
 		build/hiscore.dat
 	cp disk/iverba2.atr.in iverba2.atr
 	${FRANNY} -t m -A iverba2.atr -i build/iverba2.xex -o AUTORUN
@@ -72,6 +83,7 @@ iverba2.atr:	disk/iverba2.atr.in \
 	${FRANNY} -A iverba2.atr -i build/fr_fr.dic -o FR_FR.DIC
 	${FRANNY} -A iverba2.atr -i build/it_it.dic -o IT_IT.DIC
 	${FRANNY} -A iverba2.atr -i build/pl_pl.dic -o PL_PL.DIC
+	${FRANNY} -A iverba2.atr -i build/dict.lst -o DICT.LST
 	${FRANNY} -A iverba2.atr -i build/hiscore.dat -o HISCORE.DAT
 
 build/iverba2.xex:	obj/iverba2.o obj/sound.o obj/cio.o src/atari.cfg

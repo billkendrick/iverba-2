@@ -6,4 +6,5 @@ TODO for Invenies Verba 2.0
  * Actually allow German eszett
  * Improve dictionary (> 15 char alphabet)
    + Concept: TBD
- * Support switching to other dictionaries
+ * Save dictionary choice back to disk (so it can auto-load)
+ * Allow dictionary choice to be changed

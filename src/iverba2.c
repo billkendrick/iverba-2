@@ -51,6 +51,7 @@ unsigned char * scr_mem;
 unsigned char ltr_scores[27];
 BOOL pal_speed;
 BOOL dark = FALSE; /* FIXME: Allow changing & save setting */
+char dict_fname[15]; /* "D:", up to 8 filename characters, ".DIC", terminating NUL */
 
 
 /*
@@ -680,7 +681,7 @@ void load_dict(void) {
 135 POKE 731,255:OPEN #%1,4,%0,FN$
 */
 
-  res = disk_open("D:EN_US.DIC", IOCB_READ);
+  res = disk_open(dict_fname, IOCB_READ);
 
   if (res != 1) {
     sprintf(tmp_msg, "error %d", res);
@@ -1420,6 +1421,92 @@ void show_title_prompts(void) {
   myprint(1, 13, "HELP or H for help");
 }
 
+BOOL load_picked_dict(void) {
+  return FALSE;
+}
+
+void pick_dict(void) {
+  unsigned char res, pick, c;
+  char list[8 * 12];
+  char fname[9];
+  int x, y, i, max, term;
+
+  i = 0;
+  max = 0;
+  x = 0;
+  y = 10;
+
+  /* uDOS doesn't support directory listing, I guess?
+     So we drop a list directly onto the disk as a file. */
+  res = disk_open("D:DICT.LST", IOCB_READ);
+
+  if (res != 1) {
+    sprintf(tmp_msg, "error %d", res);
+    myprint(10 - strlen(tmp_msg) / 2, 8, tmp_msg);
+    myprint(2, 9, "can't open list");
+    OS.color4 = 64;
+    do { } while(1);
+  }
+
+  disk_read(list, 8 * 12);
+
+  disk_close();
+
+
+  fname[8] = '\0';
+
+  for (i = 0; i < 12; i++) {
+    memcpy(fname, list + i * 8, 8);
+
+    if (fname[0] != '\0') {
+      sprintf(tmp_msg, "%c%s", 'A' + 32 + i + 128, fname);
+      myprint(x, y, tmp_msg);
+      max = i;
+  
+      y++;
+      if (y > 15) {
+        x += 10;
+        y = 10;
+      }
+    } else {
+      i = 12;
+    }
+  }
+
+  sprintf(tmp_msg, "dictionary A-%c ?", 'A' + max);
+  myprint(2, 9, tmp_msg);
+
+  OS.ch = 255;
+  pick = 255;
+  do {
+    do { } while (OS.ch == 255);
+    c = kbcode_to_atascii[OS.ch];
+
+    tmp_msg[0] = c;
+    tmp_msg[1] = '\0';
+    myprint(0, 0, tmp_msg);
+
+    OS.ch = 255;
+
+    if (c >= 'a' && c <= ('a' + max)) {
+      pick = (c - 'a');
+    }
+  } while (pick == 255);
+
+  memcpy(dict_fname, "D:", 2);
+  memcpy(dict_fname + 2, list + pick * 8, 8);
+  term = 10;
+  dict_fname[10] = '\0';
+  for (i = 9; i > 0; i--) {
+    if (dict_fname[i] == ' ') {
+      term = i;
+    }
+  }
+  memcpy(dict_fname + term, ".DIC", 5);
+
+  title();
+}
+
 /* Main! */
 void main(void) {
   int i;
@@ -1447,6 +1534,10 @@ void main(void) {
     OS.color3 = 32 + (i / 7); // => 34
     while (ANTIC.vcount < 124);
     while (ANTIC.vcount < 124);
+  }
+
+  if (!load_picked_dict()) {
+    pick_dict();
   }
 
   /* Load dictionary & high score */

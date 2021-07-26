@@ -36,6 +36,12 @@ provide a score gain of 4 points on level 2, 6 points on level 3, etc.)
 However, the speed at which meters fill increases at each new level.
 
 ## Start-up
+When you first run the game, you'll be asked to choose a dictionary.
+For example, American English (`EN_US`), British English (`EN_UK`),
+Polish (`PL_PL`), etc.
+
+Press the key that corresponds to the dictionary you wish to play.
+
 Once the dictionary loads, the title screen will prompt you to press
 a key to begin the game.
 
