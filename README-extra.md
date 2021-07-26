@@ -30,22 +30,22 @@ letters can be 'packed', two letters per byte (allowing for a
 character representing a blank space, to fill words that are shorter
 than the maximum length).
 
-The "mkdict.php" script reads a dictionary full of words
-(e.g., /usr/share/dict/american-english on my Ubuntu laptop),
+The "`mkdict.php`" script reads a dictionary full of words
+(e.g., `/usr/share/dict/american-english` on my Ubuntu Linux laptop),
 determines which letters occur the most, finds all words containing
 only those letters, and packs them into a file -- along with a list
 of which letters each half-byte value represents, and the scoring
 each letter should get in the game, based on the letter's frequency
-in the original dictionary file (e.g., "en_us.dic").
+in the original dictionary file (e.g., "`en_us.dic`").
 
 On Ubuntu, other dictionaries (word lists) are available; you can
-see which ones there are by consulting the "wordlist" package;
+see which ones there are by consulting the "`wordlist`" package;
 for example, the "Provided by" section of the output of
-"aptitue show wordlist", or the "Reverse Provides" section of the
-output of "apt-cache showpkg wordlist".  For example,
-"wnorwegian".
+"`aptitude show wordlist`", or the "Reverse Provides" section of the
+output of "`apt-cache showpkg wordlist`".  For example,
+"`wnorwegian`".
 
-The other option the "mkdict.php" program accepts is the maximum length
+The other option the "`mkdict.php`" program accepts is the maximum length
 of words, e.g. 8.  It may be necessary to make dictionaries with
 smaller words, to fit everything within the Atari's memory constraints.
 
