@@ -52,26 +52,35 @@ is the scoring value for the letter.  To the left of each letter is a
 vertical meter that rises over time.
 
 At the top left of the screen, the level (and hence score multiplier)
-is shown.  (e.g., "2X")
+is shown.  (e.g., "`2X`")
 
 Your current score, along with the highest score you've ever earned
-during a game, is shown at the top center.  (e.g., "35/1459")
+during a game, is shown at the top center.  (e.g., "`35/1459`")
 
 Also near the top, a bar going across the screen shows how far you've
 progressed in the current level.
 
 As you press keys to enter a word, they appear in the center of the screen.
 Just below, the points you'd receive for the word (assuming it's valid)
-are shown (e.g., "+6", "+7 +2", etc.)
+are shown (e.g., "`+6`", "`+7 +2`", etc.)
 
 ## Playing the Game
 Use the letter keys on the keyboard to enter letters and create words.
 
-Press `[RETURN]` to submit the word.  (If the word doesn't exist in
-the dictionary, a tone will sound.)
+Remember, they must be at least 3 letters long!  Also, each letter may
+only be used once per word; in fact, the dictionary of valid words ONLY
+includes words that contain one of any given letter.  (So "dad" and "mom"
+are not possible.)
+
+Use the alphabetic keys on the keyboard (`[A]` through `[Z]`).
+When playing with the German dictionary, use the `[<]` key (directly
+to the right of the `[0]`) to enter the letter 'eszett', "ẞ".
 
 Press `[BACKSPACE]` to delete letters.  `[SHIFT]`+`[BACKSPACE]` deletes
 the entire word.
+
+Press `[RETURN]` to submit the word.  (If the word doesn't exist in
+the dictionary, a tone will sound and the screen will flash red.)
 
 Press `[ESC]` to abort your game (required, when playing in
 practice mode!)

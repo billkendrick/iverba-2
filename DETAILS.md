@@ -44,6 +44,33 @@ game-oridented DOS "uDOS" (micro DOS) is now used instead of MyDOS.
 This gives flexibility in adding new features, as well as
 improving performance of the game.
 
+## Dictionaries
+Separate language dictionaries are supported (NOT FULLY, YET),
+and utilize the 26 Latin characters "A" through "Z" found in
+English.  Letters with diacrtics (e.g., "ę", "í", and "ñ")
+are normalized to the non-diacritic versions (e.g., "e", "i"
+and "n", in the exampels above.)
+
+This has a number of benefits: (1) reducing the number of
+unique characters to support within the game (around two dozen,
+rather than over 50), (2) simplifying the input required from
+the user (and supporting such input on the Atari keyboard);
+important in a fast-paced game such as this!, and (3) allowing
+a wider variety of words to be entered, given a set of letters
+dealt by the game (e.g., in French, the letters
+B, E, L, O, Q, S, and U can be used to spell "BLOQUES",
+representing either "bloqués" ('blocked') "bloques" ('blocks')).
+
+The downside is that words that are only spelled with certain
+diacritical letters would need to be spelled "incorrectly"
+in the game (e.g., in German, it would only be possible to
+input the word "übrige" ('rest') as "UBRIGE"; but "ubrige" is
+not a German word).
+
+Along with the 26 letters common (with and without diacritics)
+across various Latin languages, the German eszett ("ß") is also
+supported.  (See [README.md] on how to input characters.)
+
 ## Some technical features
 ### Binary search
 The game uses a binary search routine to find whether or not

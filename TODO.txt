@@ -5,22 +5,4 @@ TODO for Invenies Verba 2.0
  * Fine-tune letter meter speeds
  * Improve dictionary (> 15 char alphabet)
    + Concept: TBD
- * Support for other dictionaries (German, Italian, etc.)
-   + After expanding the number of supported characters (from 15),
-     this will need support for additional character glpyhs.
-   + The full alphabet of English + French + Spanish + German + Polish +
-     Hungarian consists of 56 symbols:
-     - A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
-     - À Á Â Ç È É Ê Ë Î Ï Ñ Ó Ô Ö Ù Ú Û Ü ß Ą Ć Ę Ł Ń Ő Ś Ű Ÿ Ź Ż
-     (Note: Add Italian, and there are a few more; other characters with
-     acute, grave, or circumflex accents.)
-   + 56 symbols (plus blank for padding, or a stop character to end words)
-     would fit within 5 bits (0-63), however...
-   + With blank space, and 8 meter symbols, that's one too many characters
-     (65) to render in GRAPHICS 2 mode (only 64 possible).
-   + It may be sufficient to simply ignore diacritic symbols, while allowing
-     players to enter words that would have them.  e.g.,
-     "BAGAZJA" would be acceptable as either "bagazją" (luggage) or
-     "bagazja" (baggage).  In that case, only the German "ß"
-     (e.g., to allow "ABFRAß" (eroded)).  NOTE: This has been added to the
-     font (replacing unused "@" symbol).
+ * Support switching to other dictionaries
