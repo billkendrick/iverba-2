@@ -3,8 +3,7 @@ TODO for Invenies Verba 2.0
 
  * Make flame red when meter is very high (h/t Bob C "darwinmac" @ AtariAge)
  * Fine-tune letter meter speeds
- * FIXME: Ensure dictionary includes diacritic-having words, and allows entry
-   (e.g., in Spanish, "CUBITO" for "cúbito"; there is no "cubito")
+ * Actually allow German eszett
  * Improve dictionary (> 15 char alphabet)
    + Concept: TBD
  * Support switching to other dictionaries
